@@ -25,6 +25,8 @@ import org.apache.solr.core.SolrCore;
 import org.apache.solr.schema.FieldType;
 import org.apache.solr.spelling.suggest.LookupFactory;
 
+import org.apache.lucene.search.suggest.analyzing.SmartAnalyzingSuggester;
+
 /**
  * Factory for {@link AnalyzingSuggester}
  * @lucene.experimental
@@ -77,6 +79,8 @@ public class SmartAnalyzingLookupFactory extends LookupFactory {
 
   @Override
   public Lookup create(NamedList params, SolrCore core) {
+    System.out.println("====> SmartAnalyzingLookupFactory.create() : Lookup called");
+
     // mandatory parameter
     Object fieldTypeName = params.get(QUERY_ANALYZER);
     if (fieldTypeName == null) {
@@ -121,7 +125,7 @@ public class SmartAnalyzingLookupFactory extends LookupFactory {
     : false;
 
     
-    return new AnalyzingSuggester(indexAnalyzer, queryAnalyzer, flags, maxSurfaceFormsPerAnalyzedForm,
+    return new SmartAnalyzingSuggester(indexAnalyzer, queryAnalyzer, flags, maxSurfaceFormsPerAnalyzedForm,
         maxGraphExpansions, preservePositionIncrements);
   }
 

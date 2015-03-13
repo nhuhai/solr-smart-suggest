@@ -188,8 +188,8 @@ public class SmartSolrSuggester implements Accountable {
   }
 
   /** Returns suggestions based on the {@link SuggesterOptions} passed */
-  public SuggesterResult getSuggestions(SuggesterOptions options) throws IOException {
-    LOG.debug("getSuggestions: " + options.token);
+  public SuggesterResult getSuggestions(ContextSuggesterOptions options) throws IOException {
+    //LOG.debug("getSuggestions: " + options.token);
     if (lookup == null) {
       LOG.info("Lookup is null - invoke suggest.build first");
       return EMPTY_RESULT;

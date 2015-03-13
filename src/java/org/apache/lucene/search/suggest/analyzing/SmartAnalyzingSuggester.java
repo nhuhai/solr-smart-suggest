@@ -62,6 +62,10 @@ import org.apache.lucene.util.fst.Util;
 
 import static org.apache.lucene.util.automaton.Operations.DEFAULT_MAX_DETERMINIZED_STATES;
 
+import java.util.Arrays;
+import org.apache.solr.spelling.suggest.SmartDocumentDictionary.DocumentInputIterator;
+// import org.apache.lucene.search.suggest.analyzing.FSTUtil.Path;
+
 /**
  * Suggester that first analyzes the surface form, adds the
  * analyzed form to a weighted FST, and then does the same
@@ -229,6 +233,8 @@ public class SmartAnalyzingSuggester extends Lookup {
    */
   public SmartAnalyzingSuggester(Analyzer indexAnalyzer, Analyzer queryAnalyzer, int options, int maxSurfaceFormsPerAnalyzedForm, int maxGraphExpansions,
       boolean preservePositionIncrements) {
+    System.out.println("====> SmartAnalyzingSuggester() constructor called");
+
     this.indexAnalyzer = indexAnalyzer;
     this.queryAnalyzer = queryAnalyzer;
     if ((options & ~(EXACT_FIRST | PRESERVE_SEP)) != 0) {
@@ -457,6 +463,16 @@ public class SmartAnalyzingSuggester extends Lookup {
 
           BytesRef payload;
 
+          // My additions
+          int[] docIdsArray = ((DocumentInputIterator)iterator).docIdsArray();
+          System.out.println("docIdsArray: " + Arrays.toString(docIdsArray));
+          // byte[] bytesArray = Util.int2byte(docIdsArray);
+          // System.out.println("bytesArray length: " + bytesArray.length);
+          // System.out.println("bytesArray: " + Arrays.toString(bytesArray));
+          IntsRef docIdsIntsRef = new IntsRef(docIdsArray, 0, docIdsArray.length);
+          //IntSequenceOutputs
+
+
           if (hasPayloads) {
             if (surfaceForm.length > (Short.MAX_VALUE-2)) {
               throw new IllegalArgumentException("cannot handle surface form > " + (Short.MAX_VALUE-2) + " in length (got " + surfaceForm.length + ")");
@@ -466,6 +482,7 @@ public class SmartAnalyzingSuggester extends Lookup {
             requiredLength += payload.length + 2;
           } else {
             payload = null;
+            requiredLength += docIdsArray.length * 4 + 2;
           }
           
           buffer = ArrayUtil.grow(buffer, requiredLength);
@@ -488,8 +505,14 @@ public class SmartAnalyzingSuggester extends Lookup {
             output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
             output.writeBytes(payload.bytes, payload.offset, payload.length);
           } else {
+            output.writeShort((short) surfaceForm.length);
             output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
+            for (int k = 0; k < docIdsArray.length; k++) {
+              output.writeInt(docIdsArray[k]);
+            }
           }
+
+          System.out.println("requiredLength = " + requiredLength + " AND output.getPosition() = " + output.getPosition());
 
           assert output.getPosition() == requiredLength: output.getPosition() + " vs " + requiredLength;
           writer.write(buffer, 0, output.getPosition());
@@ -537,8 +560,10 @@ public class SmartAnalyzingSuggester extends Lookup {
           surface.length = input.readShort();
           surface.offset = input.getPosition();
         } else {
+          // surface.offset = input.getPosition();
+          // surface.length = scratch.length() - surface.offset;
+          surface.length = input.readShort();
           surface.offset = input.getPosition();
-          surface.length = scratch.length() - surface.offset;
         }
         
         if (previousAnalyzed == null) {
@@ -575,9 +600,26 @@ public class SmartAnalyzingSuggester extends Lookup {
         analyzed.append((byte) dedup);
 
         Util.toIntsRef(analyzed.get(), scratchInts);
-        //System.out.println("ADD: " + scratchInts + " -> " + cost + ": " + surface.utf8ToString());
+        System.out.println("ADD: " + scratchInts.get() + " -> " + cost + ": " + surface.utf8ToString());
         if (!hasPayloads) {
-          builder.add(scratchInts.get(), outputs.newPair(cost, BytesRef.deepCopyOf(surface)));
+          int docIdsArrayOffset = input.getPosition() + surface.length;
+          int docIdsArrayLength = scratch.length() - docIdsArrayOffset;
+
+          System.out.println("scratch length = " + scratch.length() + " &&& docIdsArrayOffset = " + docIdsArrayOffset + 
+            " &&& surface.length = " + surface.length +  "&&& docIdsArrayLength = " + docIdsArrayLength);
+
+          BytesRef br = new BytesRef(surface.length + 1 + docIdsArrayLength);
+
+          System.out.print("output2 total length = ");
+          System.out.println(surface.length + 1 + docIdsArrayLength);
+
+          System.arraycopy(surface.bytes, surface.offset, br.bytes, 0, surface.length);
+
+          br.bytes[surface.length] = PAYLOAD_SEP;
+          System.arraycopy(scratch.bytes(), docIdsArrayOffset, br.bytes, surface.length+1, docIdsArrayLength);
+          br.length = br.bytes.length;
+          builder.add(scratchInts.get(), outputs.newPair(cost, br));
+          // builder.add(scratchInts.get(), outputs.newPair(cost, BytesRef.deepCopyOf(surface)));
         } else {
           int payloadOffset = input.getPosition() + surface.length;
           int payloadLength = scratch.length() - payloadOffset;
@@ -647,9 +689,31 @@ public class SmartAnalyzingSuggester extends Lookup {
       payload.length = payloadLen;
       result = new LookupResult(spare.toString(), decodeWeight(output1), payload);
     } else {
-      spare.grow(output2.length);
-      spare.copyUTF8Bytes(output2);
-      result = new LookupResult(spare.toString(), decodeWeight(output1));
+      // Add code here
+      System.out.println("OUTPUT2 offset = " + output2.offset + ", length = " + output2.length);
+      int sepIndex = -1;
+      for (int i=0; i < output2.length; i++) {
+        if (output2.bytes[output2.offset+i] == PAYLOAD_SEP) {
+          sepIndex = i;
+          break;
+        }
+      }
+      System.out.println("sepIndex = " + sepIndex);
+      assert sepIndex != -1;
+      spare.grow(sepIndex);
+
+      final int docIdsArrayLength = output2.length - sepIndex - 1;
+      System.out.println("docIdsArrayLength = " + docIdsArrayLength);
+      spare.copyUTF8Bytes(output2.bytes, output2.offset, sepIndex);
+      System.out.println("SPARE.toString = " + spare.toString()) ;
+
+      BytesRef docIdsArrayBytesRef = new BytesRef(docIdsArrayLength);
+      System.arraycopy(output2.bytes, sepIndex+1, docIdsArrayBytesRef.bytes, 0, docIdsArrayLength);
+      docIdsArrayBytesRef.length = docIdsArrayLength;
+      result = new LookupResult(spare.toString(), decodeWeight(output1), docIdsArrayBytesRef);
+      // spare.grow(output2.length);
+      // spare.copyUTF8Bytes(output2);
+      // result = new LookupResult(spare.toString(), decodeWeight(output1));
     }
 
     return result;
@@ -678,7 +742,7 @@ public class SmartAnalyzingSuggester extends Lookup {
 
     if (onlyMorePopular) {
       throw new IllegalArgumentException("this suggester only works with onlyMorePopular=false");
-    }
+    } 
     if (contexts != null) {
       throw new IllegalArgumentException("this suggester doesn't support contexts");
     }
@@ -686,7 +750,7 @@ public class SmartAnalyzingSuggester extends Lookup {
       return Collections.emptyList();
     }
 
-    //System.out.println("lookup key=" + key + " num=" + num);
+    System.out.println("lookup key=" + key + " num=" + num);
     for (int i = 0; i < key.length(); i++) {
       if (key.charAt(i) == 0x1E) {
         throw new IllegalArgumentException("lookup key cannot contain HOLE character U+001E; this character is reserved");
@@ -701,13 +765,11 @@ public class SmartAnalyzingSuggester extends Lookup {
 
       final CharsRefBuilder spare = new CharsRefBuilder();
 
-      //System.out.println("  now intersect exactFirst=" + exactFirst);
+      System.out.println("  now intersect exactFirst=" + exactFirst);
     
       // Intersect automaton w/ suggest wFST and get all
       // prefix starting nodes & their outputs:
       //final PathIntersector intersector = getPathIntersector(lookupAutomaton, fst);
-
-      //System.out.println("  prefixPaths: " + prefixPaths.size());
 
       BytesReader bytesReader = fst.getBytesReader();
 
@@ -716,6 +778,8 @@ public class SmartAnalyzingSuggester extends Lookup {
       final List<LookupResult> results = new ArrayList<>();
 
       List<FSTUtil.Path<Pair<Long,BytesRef>>> prefixPaths = FSTUtil.intersectPrefixPaths(convertAutomaton(lookupAutomaton), fst);
+
+      System.out.println("  prefixPaths: " + prefixPaths.size());
 
       if (exactFirst) {
 
@@ -811,6 +875,7 @@ public class SmartAnalyzingSuggester extends Lookup {
       };
 
       prefixPaths = getFullPrefixPaths(prefixPaths, lookupAutomaton, fst);
+      System.out.println("  prefixPaths 2  = " + prefixPaths.size());
       
       for (FSTUtil.Path<Pair<Long,BytesRef>> path : prefixPaths) {
         searcher.addStartPaths(path.fstNode, path.output, true, path.input);
@@ -826,7 +891,7 @@ public class SmartAnalyzingSuggester extends Lookup {
         // TODO: for fuzzy case would be nice to return
         // how many edits were required
 
-        //System.out.println("    result=" + result);
+        System.out.println("    result=" + result);
         results.add(result);
 
         if (results.size() == num) {

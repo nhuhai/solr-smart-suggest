@@ -32,8 +32,17 @@ import org.apache.lucene.search.spell.Dictionary;
 import org.apache.lucene.util.Bits;
 import org.apache.lucene.util.BytesRef;
 
-
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.index.Term;
+import org.apache.solr.search.DocSet;
+import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.lucene.search.suggest.InputIterator;
+import java.util.Arrays;
+import org.apache.solr.search.SortedIntDocSet;
+import org.apache.solr.search.BitDocSet;
+import java.util.Iterator;
 
 /**
  * <p>
@@ -61,6 +70,7 @@ public class SmartDocumentDictionary implements Dictionary {
   
   /** {@link IndexReader} to load documents from */
   protected final IndexReader reader;
+  protected final SolrIndexSearcher searcher;
 
   /** Field to read payload from */
   protected final String payloadField;
@@ -74,8 +84,8 @@ public class SmartDocumentDictionary implements Dictionary {
    * for the terms and <code>weightField</code> for the weights that will be used for
    * the corresponding terms.
    */
-  public SmartDocumentDictionary(IndexReader reader, String field, String weightField) {
-    this(reader, field, weightField, null);
+  public SmartDocumentDictionary(SolrIndexSearcher searcher, String field, String weightField) {
+    this(searcher, field, weightField, null);
   }
   
   /**
@@ -84,8 +94,8 @@ public class SmartDocumentDictionary implements Dictionary {
    * the corresponding terms and <code>payloadField</code> for the corresponding payloads
    * for the entry.
    */
-  public SmartDocumentDictionary(IndexReader reader, String field, String weightField, String payloadField) {
-    this(reader, field, weightField, payloadField, null);
+  public SmartDocumentDictionary(SolrIndexSearcher searcher, String field, String weightField, String payloadField) {
+    this(searcher, field, weightField, payloadField, null);
   }
 
   /**
@@ -94,8 +104,9 @@ public class SmartDocumentDictionary implements Dictionary {
    * the corresponding terms, <code>payloadField</code> for the corresponding payloads
    * for the entry and <code>contextsFeild</code> for associated contexts.
    */
-  public SmartDocumentDictionary(IndexReader reader, String field, String weightField, String payloadField, String contextsField) {
-    this.reader = reader;
+  public SmartDocumentDictionary(SolrIndexSearcher searcher, String field, String weightField, String payloadField, String contextsField) {
+    this.searcher = searcher;
+    this.reader = this.searcher.getIndexReader();
     this.field = field;
     this.weightField = weightField;
     this.payloadField = payloadField;
@@ -108,7 +119,7 @@ public class SmartDocumentDictionary implements Dictionary {
   }
 
   /** Implements {@link InputIterator} from stored fields. */
-  protected class DocumentInputIterator implements InputIterator {
+  public class DocumentInputIterator implements InputIterator {
 
     private final int docCount;
     private final Set<String> relevantFields;
@@ -120,6 +131,8 @@ public class SmartDocumentDictionary implements Dictionary {
     private BytesRef currentPayload;
     private Set<BytesRef> currentContexts;
     private final NumericDocValues weightValues;
+
+    private int[] currentDocIdsArray;
 
     
     /**
@@ -160,6 +173,9 @@ public class SmartDocumentDictionary implements Dictionary {
         BytesRef tempTerm = null;
         Set<BytesRef> tempContexts = new HashSet<>();
 
+        DocSet tempDocSet = null;
+        int[] tempDocIdsArray = null;
+
         if (hasPayloads) {
           IndexableField payload = doc.getField(payloadField);
           if (payload == null || (payload.binaryValue() == null && payload.stringValue() == null)) {
@@ -183,11 +199,51 @@ public class SmartDocumentDictionary implements Dictionary {
         if (fieldVal == null || (fieldVal.binaryValue() == null && fieldVal.stringValue() == null)) {
           continue;
         }
+
+        if (fieldVal.stringValue() != null) {
+          System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
+          Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
+
+          tempDocSet = searcher.getDocSet(query);
+          if (tempDocSet instanceof BitDocSet) {
+            BitDocSet bitDocSet = (BitDocSet)tempDocSet;
+            int numDocs = bitDocSet.size();
+            tempDocIdsArray = new int[numDocs];
+            Iterator iter = bitDocSet.iterator();
+            int curIdx = 0;
+            
+            while (iter.hasNext() && curIdx < numDocs) {
+              tempDocIdsArray[curIdx++] = (Integer)iter.next();
+            }
+            
+            // System.out.print("Doc Ids Array: [");
+            // for (int i = 0; i < bits.length ; i++) {
+            //   System.out.print(bits[i]);
+            //   if (i != bits.length -1) {
+            //     System.out.print(",");
+            //   }
+            // }
+            // System.out.println("]");
+            // System.out.println("Num bits = " + bitDocSet.getBits().length() + ", Num 64-bit words = " + bitDocSet.getBits().getNumWords());
+          }
+
+          if (tempDocSet instanceof SortedIntDocSet) {
+            System.out.print("It's a SortedIntDocSet with length = ");
+            System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+          }
+        } else {
+          System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;
+        }
+
         tempTerm = (fieldVal.stringValue() != null) ? new BytesRef(fieldVal.stringValue()) : fieldVal.binaryValue();
 
         currentPayload = tempPayload;
         currentContexts = tempContexts;
         currentWeight = getWeight(doc, currentDocId);
+
+        currentDocIdsArray = tempDocIdsArray;
+        System.out.print("currentDocIdsArray = ");
+        System.out.println(Arrays.toString(currentDocIdsArray));
 
         return tempTerm;
       }
@@ -202,6 +258,10 @@ public class SmartDocumentDictionary implements Dictionary {
     @Override
     public boolean hasPayloads() {
       return hasPayloads;
+    }
+
+    public int[] docIdsArray() {
+      return currentDocIdsArray;
     }
     
     /** 

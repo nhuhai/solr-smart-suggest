@@ -50,7 +50,7 @@ public class SmartDocumentDictionaryFactory extends DictionaryFactory {
       throw new IllegalArgumentException(WEIGHT_FIELD + " is a mandatory parameter");
     }
     
-    return new DocumentDictionary(searcher.getIndexReader(), field, weightField, payloadField);
+    return new SmartDocumentDictionary(searcher, field, weightField, payloadField);
   }
   
 }

@@ -54,6 +54,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.solr.spelling.suggest.SmartSolrSuggester;
+import org.apache.solr.spelling.suggest.ContextSuggesterOptions;
 
 /**
  * SuggestComponent: interacts with multiple {@link SmartSolrSuggester} to serve up suggestions
@@ -77,6 +78,8 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
   
   /** SolrConfig label to identify boolean value to build suggesters on optimize */
   private static final String BUILD_ON_OPTIMIZE_LABEL = "buildOnOptimize";
+
+  private static final String SUGGESTION_CONTEXT = "context";
   
   @SuppressWarnings("unchecked")
   protected NamedList initParams;
@@ -94,6 +97,7 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
     static final String SUGGESTION_TERM = "term";
     static final String SUGGESTION_WEIGHT = "weight";
     static final String SUGGESTION_PAYLOAD = "payload";
+    static final String SUGGESTION_DOCSID = "docIds";
   }
   
   @Override
@@ -226,10 +230,19 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
         query = params.get(CommonParams.Q);
       }
     }
+
+
+    String context = params.get(SUGGESTION_CONTEXT);
+
+    if (context != null) {
+      System.out.println("====> Context = " + context);
+    } else {
+      System.out.println("====> Context is null");
+    }
     
     if (query != null) {
       int count = params.getInt(SUGGEST_COUNT, 1);
-      SuggesterOptions options = new SuggesterOptions(new CharsRef(query), count);
+      ContextSuggesterOptions options = new ContextSuggesterOptions(new CharsRef(query), count, context);
       Map<String, SimpleOrderedMap<NamedList<Object>>> namedListResults = 
           new HashMap<>();
       for (SmartSolrSuggester suggester : querySuggesters) {
@@ -390,14 +403,31 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
         for (LookupResult lookupResult : lookupResults) {
           String suggestionString = lookupResult.key.toString();
           long weight = lookupResult.value;
-          String payload = (lookupResult.payload != null) ? 
-              lookupResult.payload.utf8ToString()
-              : "";
+          // String payload = (lookupResult.payload != null) ? 
+              // lookupResult.payload.utf8ToString()
+              // : "";
+
+          // Add code to display docIdsArray
+          String payload = "[";
+          byte[] payloadBytes = lookupResult.payload.bytes;
+          for (int i = 0; i < payloadBytes.length; i+=4) {
+            if (i > 0) {
+              payload += ", ";
+            }
+            int finalInt= (payloadBytes[i]<<24)&0xff000000|
+                   (payloadBytes[i+1]<<16)&0x00ff0000|
+                   (payloadBytes[i+2]<< 8)&0x0000ff00|
+                   (payloadBytes[i+3]<< 0)&0x000000ff;
+            
+            payload += finalInt;                           
+          }
+          payload += "]";
           
           SimpleOrderedMap<Object> suggestEntryNamedList = new SimpleOrderedMap<>();
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_TERM, suggestionString);
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_WEIGHT, weight);
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_PAYLOAD, payload);
+          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, payload);
           suggestEntriesNamedList.add(suggestEntryNamedList);
           
         }
