@@ -195,6 +195,8 @@ public class SmartAnalyzingSuggester extends Lookup {
   /** Number of entries the lookup was built with */
   private long count = 0;
 
+  private String context;
+
   /**
    * Calls {@link #AnalyzingSuggester(Analyzer,Analyzer,int,int,int,boolean)
    * AnalyzingSuggester(analyzer, analyzer, EXACT_FIRST |
@@ -739,6 +741,8 @@ public class SmartAnalyzingSuggester extends Lookup {
   @Override
   public List<LookupResult> lookup(final CharSequence key, Set<BytesRef> contexts, boolean onlyMorePopular, int num) {
     assert num > 0;
+
+    this.context = context;
 
     if (onlyMorePopular) {
       throw new IllegalArgumentException("this suggester only works with onlyMorePopular=false");

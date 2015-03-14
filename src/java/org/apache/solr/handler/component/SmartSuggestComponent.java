@@ -246,6 +246,7 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
       Map<String, SimpleOrderedMap<NamedList<Object>>> namedListResults = 
           new HashMap<>();
       for (SmartSolrSuggester suggester : querySuggesters) {
+        suggester.setSolrIndexSearcher(rb.req.getSearcher());
         SuggesterResult suggesterResult = suggester.getSuggestions(options);
         toNamedList(suggesterResult, namedListResults);
       }

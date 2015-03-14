@@ -36,6 +36,18 @@ import org.apache.solr.search.SolrIndexSearcher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.apache.lucene.search.suggest.analyzing.SmartAnalyzingSuggester;
+import org.apache.solr.search.DocSet;
+import org.apache.solr.search.SortedIntDocSet;
+import org.apache.solr.search.BitDocSet;
+import java.util.Comparator;
+import org.apache.lucene.util.BytesRef;
+import java.util.Collections;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TermQuery;
+import org.apache.lucene.index.Term;
+import java.util.Iterator;
+
 /** 
  * Responsible for loading the lookup and dictionary Implementations specified by 
  * the SolrConfig. 
@@ -81,6 +93,13 @@ public class SmartSolrSuggester implements Accountable {
 
   private LookupFactory factory;
   private DictionaryFactory dictionaryFactory;
+
+  private SolrIndexSearcher solrIndexSearcher;
+
+  public void setSolrIndexSearcher(SolrIndexSearcher solrIndexSearcher) {
+    System.out.println("setSolrIndexSearcher()");
+    this.solrIndexSearcher = solrIndexSearcher;
+  }
   
   /** 
    * Uses the <code>config</code> and the <code>core</code> to initialize the underlying 
@@ -88,7 +107,7 @@ public class SmartSolrSuggester implements Accountable {
    * */
   public String init(NamedList<?> config, SolrCore core) {
     LOG.info("init: " + config);
-    
+
     // read the config
     name = config.get(NAME) != null ? (String) config.get(NAME)
         : DEFAULT_DICT_NAME;
@@ -196,9 +215,102 @@ public class SmartSolrSuggester implements Accountable {
     }
     
     SuggesterResult res = new SuggesterResult();
-    List<LookupResult> suggestions = lookup.lookup(options.token, false, options.count);
+    List<LookupResult> suggestions = ((SmartAnalyzingSuggester)lookup).lookup(options.token, null, false, options.count);
+
+    // Sort resutls
+    ScoreComparator scoreComparator = new ScoreComparator(this.solrIndexSearcher, options.context);
+    Collections.sort(suggestions, scoreComparator);
+
     res.add(getName(), options.token.toString(), suggestions);
     return res;
+  }
+
+
+  private static class ScoreComparator implements Comparator<LookupResult> {
+    private final SolrIndexSearcher searcher;
+    private final String context;
+    private SortedIntDocSet contextDocIdSet;
+
+    public ScoreComparator(SolrIndexSearcher searcher, String context) throws IOException {
+      this.searcher = searcher;
+      this.context = context;
+      this.contextDocIdSet = this.getContextSortedDocIdSet();
+    }
+
+    @Override
+    public int compare(LookupResult left, LookupResult right) {
+      int leftScore = 0;
+      int rightScore = 0; 
+
+      try {
+        leftScore += this.getScore(left.payload);
+        rightScore += this.getScore(right.payload);
+      } catch(IOException e) {
+        System.out.println("IOException");
+      }
+
+      // System.out.println("left = " + leftScore + " - right = " + rightScore);
+
+      if (leftScore > rightScore) {
+        return -1;
+      } else if (leftScore == rightScore) {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
+
+    public SortedIntDocSet getContextSortedDocIdSet() throws IOException {
+      Query query = new TermQuery(new Term("text", this.context.toLowerCase()));
+      DocSet tempDocSet = searcher.getDocSet(query);
+      
+      int[] tempDocIdsArray = new int[0];
+      
+      if (tempDocSet instanceof BitDocSet) {
+        BitDocSet bitDocSet = (BitDocSet)tempDocSet;
+        int numDocs = bitDocSet.size();
+        tempDocIdsArray = new int[numDocs];
+        Iterator iter = bitDocSet.iterator();
+        int curIdx = 0;
+        
+        while (iter.hasNext() && curIdx < numDocs) {
+          tempDocIdsArray[curIdx++] = (Integer)iter.next();
+        }
+      }
+
+      if (tempDocSet instanceof SortedIntDocSet) {
+        System.out.print("!!!!!! It's a SortedIntDocSet with length = ");
+        System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+        return (SortedIntDocSet)tempDocSet;
+      }
+
+      return new SortedIntDocSet(tempDocIdsArray);
+    }
+
+    public int getScore(BytesRef payload) throws IOException {
+      byte[] payloadBytes = payload.bytes;
+      int[] tempDocIdsArray = new int[(int)(payloadBytes.length/4)];
+      int score = 0;
+
+      
+      for (int i = 0; i < payloadBytes.length; i+=4) {
+        int finalInt= (payloadBytes[i]<<24)&0xff000000|
+               (payloadBytes[i+1]<<16)&0x00ff0000|
+               (payloadBytes[i+2]<< 8)&0x0000ff00|
+               (payloadBytes[i+3]<< 0)&0x000000ff;
+
+        tempDocIdsArray[i] = finalInt;
+      }
+
+      SortedIntDocSet curSortedIntDocSet = new SortedIntDocSet(tempDocIdsArray);
+
+      if (this.contextDocIdSet != null) {
+        int overlappedScore = curSortedIntDocSet.intersectionSize(this.contextDocIdSet);
+        score += overlappedScore;
+      }
+      
+      return score;
+    }
   }
 
   /** Returns the unique name of the suggester */
