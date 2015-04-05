@@ -36,6 +36,8 @@ java -Dcollection.configName=logmill -DzkRun -DnumShards=2 -Dbootstrap_confdir=.
 2nd instance
 java -DzkHost=localhost:9983 -Djetty.port=8984 -jar start.jar 
 
+http://localhost:8983/solr/logmill/suggest?suggest.dictionary=titleSuggester&suggest.q=th&context=&suggest.dictionary=authorSuggester&suggest.dictionary=publisherSuggester&shards.qt=/suggest&wt=json
+
 
 
 

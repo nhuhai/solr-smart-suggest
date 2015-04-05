@@ -231,20 +231,18 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
       }
     }
 
-
     String context = params.get(SUGGESTION_CONTEXT);
-
-    if (context != null) {
-      System.out.println("====> Context = " + context);
-    } else {
-      System.out.println("====> Context is null");
-    }
     
     if (query != null) {
       int count = params.getInt(SUGGEST_COUNT, 1);
-      ContextSuggesterOptions options = new ContextSuggesterOptions(new CharsRef(query), count, context);
-      Map<String, SimpleOrderedMap<NamedList<Object>>> namedListResults = 
-          new HashMap<>();
+       ContextSuggesterOptions options;
+      if (context != null) {
+        options = new ContextSuggesterOptions(new CharsRef(query), count, context);
+      } else {
+        options = new ContextSuggesterOptions(new CharsRef(query), count, null);
+      }
+      
+      Map<String, SimpleOrderedMap<NamedList<Object>>> namedListResults = new HashMap<>();
       for (SmartSolrSuggester suggester : querySuggesters) {
         suggester.setSolrIndexSearcher(rb.req.getSearcher());
         SuggesterResult suggesterResult = suggester.getSuggestions(options);

@@ -218,8 +218,11 @@ public class SmartSolrSuggester implements Accountable {
     List<LookupResult> suggestions = ((SmartAnalyzingSuggester)lookup).lookup(options.token, null, false, options.count);
 
     // Sort resutls
-    ScoreComparator scoreComparator = new ScoreComparator(this.solrIndexSearcher, options.context);
-    Collections.sort(suggestions, scoreComparator);
+    if (options.context != null) {
+      ScoreComparator scoreComparator = new ScoreComparator(this.solrIndexSearcher, options.context);
+      Collections.sort(suggestions, scoreComparator);  
+    }
+    
 
     res.add(getName(), options.token.toString(), suggestions);
     return res;
