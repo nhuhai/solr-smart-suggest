@@ -27,4 +27,18 @@ Changes in Solr Code base:
 - org.apache.lucene.search.suggest.analyzing.FSTUtil:  add "public" to "T output" (reason: same package name but different classloader, so it doesn't allow to access private field at run time.)
 
 
+Commands to start SolrCloud, 2 shards
+
+1st instance
+java -Dcollection.configName=logmill -DzkRun -DnumShards=2 -Dbootstrap_confdir=./solr/logmill/conf -jar start.jar
+
+
+2nd instance
+java -DzkHost=localhost:9983 -Djetty.port=8984 -jar start.jar 
+
+
+
+
+
+
 

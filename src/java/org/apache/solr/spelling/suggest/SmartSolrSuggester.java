@@ -289,8 +289,10 @@ public class SmartSolrSuggester implements Accountable {
 
     public int getScore(BytesRef payload) throws IOException {
       byte[] payloadBytes = payload.bytes;
-      int[] tempDocIdsArray = new int[(int)(payloadBytes.length/4)];
+      int tempDocIdsArrayLength = (int)(payloadBytes.length/4);
+      int[] tempDocIdsArray = new int[tempDocIdsArrayLength];
       int score = 0;
+      int count = 0;
 
       
       for (int i = 0; i < payloadBytes.length; i+=4) {
@@ -299,7 +301,8 @@ public class SmartSolrSuggester implements Accountable {
                (payloadBytes[i+2]<< 8)&0x0000ff00|
                (payloadBytes[i+3]<< 0)&0x000000ff;
 
-        tempDocIdsArray[i] = finalInt;
+        tempDocIdsArray[count] = finalInt;
+        count++;
       }
 
       SortedIntDocSet curSortedIntDocSet = new SortedIntDocSet(tempDocIdsArray);
