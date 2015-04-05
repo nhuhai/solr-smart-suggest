@@ -407,26 +407,26 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
               // : "";
 
           // Add code to display docIdsArray
-          String payload = "[";
+          String docIdsArrayStr = "[";
           byte[] payloadBytes = lookupResult.payload.bytes;
           for (int i = 0; i < payloadBytes.length; i+=4) {
             if (i > 0) {
-              payload += ", ";
+              docIdsArrayStr += ", ";
             }
             int finalInt= (payloadBytes[i]<<24)&0xff000000|
                    (payloadBytes[i+1]<<16)&0x00ff0000|
                    (payloadBytes[i+2]<< 8)&0x0000ff00|
                    (payloadBytes[i+3]<< 0)&0x000000ff;
             
-            payload += finalInt;                           
+            docIdsArrayStr += finalInt;                           
           }
-          payload += "]";
+          docIdsArrayStr += "]";
           
           SimpleOrderedMap<Object> suggestEntryNamedList = new SimpleOrderedMap<>();
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_TERM, suggestionString);
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_WEIGHT, weight);
-          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_PAYLOAD, payload);
-          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, payload);
+          //suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_PAYLOAD, payload);
+          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, docIdsArrayStr);
           suggestEntriesNamedList.add(suggestEntryNamedList);
           
         }
