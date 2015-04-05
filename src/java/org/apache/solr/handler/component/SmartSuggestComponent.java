@@ -424,7 +424,7 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
           
           SimpleOrderedMap<Object> suggestEntryNamedList = new SimpleOrderedMap<>();
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_TERM, suggestionString);
-          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_WEIGHT, weight);
+          // suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_WEIGHT, weight);
           //suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_PAYLOAD, payload);
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, docIdsArrayStr);
           suggestEntriesNamedList.add(suggestEntryNamedList);
