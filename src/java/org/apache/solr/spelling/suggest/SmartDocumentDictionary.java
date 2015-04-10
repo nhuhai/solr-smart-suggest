@@ -204,17 +204,22 @@ public class SmartDocumentDictionary implements Dictionary {
           System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
           Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
 
-          tempDocSet = searcher.getDocSet(query);
-          if (tempDocSet instanceof BitDocSet) {
-            BitDocSet bitDocSet = (BitDocSet)tempDocSet;
-            int numDocs = bitDocSet.size();
-            tempDocIdsArray = new int[numDocs];
-            Iterator iter = bitDocSet.iterator();
-            int curIdx = 0;
+          
+
+          // tempDocSet = searcher.getDocSet(query);
+
+          // if (tempDocSet instanceof BitDocSet) {
+          //   BitDocSet bitDocSet = (BitDocSet)tempDocSet;
+          //   int numDocs = bitDocSet.size();
+
+
+          //   tempDocIdsArray = new int[numDocs];
+          //   Iterator iter = bitDocSet.iterator();
+          //   int curIdx = 0;
             
-            while (iter.hasNext() && curIdx < numDocs) {
-              tempDocIdsArray[curIdx++] = (Integer)iter.next();
-            }
+          //   while (iter.hasNext() && curIdx < numDocs) {
+          //     tempDocIdsArray[curIdx++] = (Integer)iter.next();
+          //   }
             
             // System.out.print("Doc Ids Array: [");
             // for (int i = 0; i < bits.length ; i++) {
@@ -225,11 +230,12 @@ public class SmartDocumentDictionary implements Dictionary {
             // }
             // System.out.println("]");
             // System.out.println("Num bits = " + bitDocSet.getBits().length() + ", Num 64-bit words = " + bitDocSet.getBits().getNumWords());
-          }
+          // }
 
           if (tempDocSet instanceof SortedIntDocSet) {
             System.out.print("It's a SortedIntDocSet with length = ");
             System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+            tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
           }
         } else {
           System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;

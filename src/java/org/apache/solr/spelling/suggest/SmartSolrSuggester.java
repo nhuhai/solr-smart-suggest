@@ -47,6 +47,12 @@ import org.apache.lucene.search.Query;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.index.Term;
 import java.util.Iterator;
+import java.util.Arrays;
+
+import org.apache.lucene.index.IndexReader;
+import org.apache.lucene.document.Document;
+import org.apache.lucene.document.StoredField;
+import java.util.ArrayList;
 
 /** 
  * Responsible for loading the lookup and dictionary Implementations specified by 
@@ -229,15 +235,19 @@ public class SmartSolrSuggester implements Accountable {
   }
 
 
-  private static class ScoreComparator implements Comparator<LookupResult> {
+  private class ScoreComparator implements Comparator<LookupResult> {
     private final SolrIndexSearcher searcher;
     private final String context;
     private SortedIntDocSet contextDocIdSet;
+    private SortedIntDocSet relatedDocIdSet;
+    private IndexReader reader;
 
     public ScoreComparator(SolrIndexSearcher searcher, String context) throws IOException {
       this.searcher = searcher;
       this.context = context;
+      this.reader = searcher.getIndexReader();
       this.contextDocIdSet = this.getContextSortedDocIdSet();
+      this.relatedDocIdSet = this.getContextRelatedDocs();
     }
 
     @Override
@@ -252,7 +262,7 @@ public class SmartSolrSuggester implements Accountable {
         System.out.println("IOException");
       }
 
-      // System.out.println("left = " + leftScore + " - right = " + rightScore);
+      LOG.info("left = " + leftScore + " - right = " + rightScore);
 
       if (leftScore > rightScore) {
         return -1;
@@ -279,15 +289,55 @@ public class SmartSolrSuggester implements Accountable {
         while (iter.hasNext() && curIdx < numDocs) {
           tempDocIdsArray[curIdx++] = (Integer)iter.next();
         }
+
+        LOG.info("---> Context Doc Ids Array: " + Arrays.toString(tempDocIdsArray));
+        return new SortedIntDocSet(tempDocIdsArray);
+      } else if (tempDocSet instanceof SortedIntDocSet) {
+        int[] tempAr = ((SortedIntDocSet)tempDocSet).getDocs();
+        LOG.info("---> Context Doc Ids Array: " + Arrays.toString(tempAr));
+        return new SortedIntDocSet(tempAr);
+      } else {
+        return new SortedIntDocSet(tempDocIdsArray);
+      }
+    }
+
+    // This method iterates the context sortedDocIdSet
+    // For each docId in that set, get the related docs of that doc 
+    // by issuing a query for Lucene internal ids to get all the docs
+    // then get the relatedDocs of those.
+    // Before that, we need to append the relatedDocs field to each doc
+    // during the build process.
+    public SortedIntDocSet getContextRelatedDocs() throws IOException {
+      List<Integer> finalRelatedDocs = new ArrayList<Integer>();
+      if (contextDocIdSet != null && this.reader != null) {
+        int[] docIds = contextDocIdSet.getDocs();
+        for (int i = 0; i < docIds.length; i++) {
+          LOG.info("----> Context doc Id: " + docIds[i]);
+          Document doc = this.reader.document(i);
+          LOG.info("----> Doc: " + doc);
+          String[] relatedDocs = doc.getValues("relatedDocs");
+          if (relatedDocs.length > 0) {
+            for (int j = 0; j < relatedDocs.length; j++) {
+              BytesRef uidBytesRef = new BytesRef(relatedDocs[j]);
+              int docID = (int)(solrIndexSearcher.lookupId(uidBytesRef));
+              if (docID != -1) {
+                finalRelatedDocs.add(docID);
+              }
+            }
+          } else {
+            LOG.info("----> Related Docs is empty");
+          }
+        }
       }
 
-      if (tempDocSet instanceof SortedIntDocSet) {
-        System.out.print("!!!!!! It's a SortedIntDocSet with length = ");
-        System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
-        return (SortedIntDocSet)tempDocSet;
+      int[] ret = new int[finalRelatedDocs.size()];
+      int k = 0;
+      for (Integer e : finalRelatedDocs) {
+        ret[k++] = e.intValue();
       }
-
-      return new SortedIntDocSet(tempDocIdsArray);
+      Arrays.sort(ret);
+      LOG.info("----> Related DocIds: " + Arrays.toString(ret));
+      return new SortedIntDocSet(ret);
     }
 
     public int getScore(BytesRef payload) throws IOException {
@@ -312,7 +362,12 @@ public class SmartSolrSuggester implements Accountable {
 
       if (this.contextDocIdSet != null) {
         int overlappedScore = curSortedIntDocSet.intersectionSize(this.contextDocIdSet);
-        score += overlappedScore;
+        score += overlappedScore * 10;
+      }
+
+      if (this.relatedDocIdSet != null) {
+        int overlappedRelatedDocs = curSortedIntDocSet.intersectionSize(this.relatedDocIdSet);
+        score += overlappedRelatedDocs * 5;
       }
       
       return score;

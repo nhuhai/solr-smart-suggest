@@ -1,0 +1,26 @@
+<doc>
+<field name="uri">http://dbpedia.org/resource/Metamorphosis_of_Narcissus</field>
+<field name="entity_type">paintings</field>
+<field name="label">Metamorphosis of Narcissus</field>
+<field name="artist">http://dbpedia.org/resource/Salvador_Dal%C3%AD</field>
+<field name="city">http://dbpedia.org/resource/London</field>
+<field name="museum">http://dbpedia.org/resource/Tate_Modern</field>
+</doc>
+
+<doc>
+<field name="uri">http://dbpedia.org/resource/Tate_Modern</field>
+<field name="entity_type">museums</field>
+<field name="label">Tate Modern</field>
+</doc>
+
+<doc>
+<field name="uri">http://dbpedia.org/resource/Tata</field>
+<field name="entity_type">museums</field>
+<field name="label">Tata</field>
+</doc>
+
+<doc>
+<field name="uri">http://dbpedia.org/resource/Salvador_Dal%C3%AD</field>
+<field name="entity_type">museums</field>
+<field name="label">Tat ten</field>
+</doc>

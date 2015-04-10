@@ -39,7 +39,8 @@ java -DzkHost=localhost:9983 -Djetty.port=8984 -jar start.jar
 http://localhost:8983/solr/logmill/suggest?suggest.dictionary=titleSuggester&suggest.q=th&context=&suggest.dictionary=authorSuggester&suggest.dictionary=publisherSuggester&shards.qt=/suggest&wt=json
 
 
-
+Download RDFs:
+curl "http://data.linkedmdb.org/data/actor/[001-100]" -o "#1"
 
 
 
