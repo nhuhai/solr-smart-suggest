@@ -146,7 +146,7 @@ public class SmartDocumentDictionary implements Dictionary {
       docCount = reader.maxDoc() - 1;
       weightValues = (weightField != null) ? MultiDocValues.getNumericValues(reader, weightField) : null;
       liveDocs = (reader.leaves().size() > 0) ? MultiFields.getLiveDocs(reader) : null;
-      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField});
+      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField, "uri", "relatedDocs"});
     }
 
     @Override
@@ -202,41 +202,14 @@ public class SmartDocumentDictionary implements Dictionary {
 
         if (fieldVal.stringValue() != null) {
           System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
-          Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
+          // Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
 
-          
-
-          // tempDocSet = searcher.getDocSet(query);
-
-          // if (tempDocSet instanceof BitDocSet) {
-          //   BitDocSet bitDocSet = (BitDocSet)tempDocSet;
-          //   int numDocs = bitDocSet.size();
-
-
-          //   tempDocIdsArray = new int[numDocs];
-          //   Iterator iter = bitDocSet.iterator();
-          //   int curIdx = 0;
-            
-          //   while (iter.hasNext() && curIdx < numDocs) {
-          //     tempDocIdsArray[curIdx++] = (Integer)iter.next();
-          //   }
-            
-            // System.out.print("Doc Ids Array: [");
-            // for (int i = 0; i < bits.length ; i++) {
-            //   System.out.print(bits[i]);
-            //   if (i != bits.length -1) {
-            //     System.out.print(",");
-            //   }
-            // }
-            // System.out.println("]");
-            // System.out.println("Num bits = " + bitDocSet.getBits().length() + ", Num 64-bit words = " + bitDocSet.getBits().getNumWords());
+          // if (tempDocSet instanceof SortedIntDocSet) {
+          //   System.out.print("It's a SortedIntDocSet with length = ");
+          //   System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+          //   tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
           // }
-
-          if (tempDocSet instanceof SortedIntDocSet) {
-            System.out.print("It's a SortedIntDocSet with length = ");
-            System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
-            tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
-          }
+          tempDocIdsArray = this.getRelatedDocIds(doc);
         } else {
           System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;
         }
@@ -254,6 +227,36 @@ public class SmartDocumentDictionary implements Dictionary {
         return tempTerm;
       }
       return null;
+    }
+
+    public int[] getRelatedDocIds(Document doc) throws IOException {
+      String uri = doc.get("uri");
+      System.out.println("uri = " + uri);
+      String[] relatedDocs = doc.getValues("relatedDocs");
+      System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
+
+      int count = 0;
+
+      if (uri == null) {
+        return new int[0];
+      } else {
+        count += 1;
+
+        if (relatedDocs.length > 0) {
+          count += relatedDocs.length;
+        }
+
+        int[] docIds = new int[count];
+        docIds[0] = uri.hashCode();
+
+        if (relatedDocs.length > 0) {
+          for (int i = 0; i < relatedDocs.length; i++) {
+            docIds[i+1] = relatedDocs[i].hashCode();
+          }  
+        }
+          
+        return docIds;
+      }
     }
 
     @Override

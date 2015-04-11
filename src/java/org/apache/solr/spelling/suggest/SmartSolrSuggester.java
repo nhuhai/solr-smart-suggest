@@ -247,7 +247,7 @@ public class SmartSolrSuggester implements Accountable {
       this.context = context;
       this.reader = searcher.getIndexReader();
       this.contextDocIdSet = this.getContextSortedDocIdSet();
-      this.relatedDocIdSet = this.getContextRelatedDocs();
+      //this.relatedDocIdSet = this.getContextRelatedDocs();
     }
 
     @Override
@@ -274,6 +274,7 @@ public class SmartSolrSuggester implements Accountable {
     }
 
     public SortedIntDocSet getContextSortedDocIdSet() throws IOException {
+      LOG.info("----> context = " + this.context);
       Query query = new TermQuery(new Term("text", this.context.toLowerCase()));
       DocSet tempDocSet = searcher.getDocSet(query);
       
@@ -289,16 +290,41 @@ public class SmartSolrSuggester implements Accountable {
         while (iter.hasNext() && curIdx < numDocs) {
           tempDocIdsArray[curIdx++] = (Integer)iter.next();
         }
-
-        LOG.info("---> Context Doc Ids Array: " + Arrays.toString(tempDocIdsArray));
-        return new SortedIntDocSet(tempDocIdsArray);
+        LOG.info("---> tempDocSet instanceof BitDocSet");
       } else if (tempDocSet instanceof SortedIntDocSet) {
-        int[] tempAr = ((SortedIntDocSet)tempDocSet).getDocs();
-        LOG.info("---> Context Doc Ids Array: " + Arrays.toString(tempAr));
-        return new SortedIntDocSet(tempAr);
+        tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
+        LOG.info("---> tempDocSet instanceof SortedIntDocSet of length " + tempDocIdsArray.length);
       } else {
-        return new SortedIntDocSet(tempDocIdsArray);
+        LOG.info("---> tempDocSet instanceof SortedIntDocSet" + tempDocSet.getClass());
       }
+
+      List<Integer> finalList = new ArrayList<Integer>();
+
+      for (int i = 0; i < tempDocIdsArray.length; i++) {
+        Document doc = this.reader.document(tempDocIdsArray[i]);
+
+        String uri = doc.get("uri");
+        System.out.println("uri = " + uri);
+        String[] relatedDocs = doc.getValues("relatedDocs");
+        System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
+
+        if (uri != null) {
+          finalList.add(uri.hashCode());
+        }
+
+        for (int j = 0; j < relatedDocs.length; j++) {
+          finalList.add(relatedDocs[j].hashCode());
+        }
+      }
+
+      tempDocIdsArray = new int[finalList.size()];
+      
+      for(int i = 0; i < tempDocIdsArray.length; i++) {
+        tempDocIdsArray[i] = finalList.get(i);
+      }
+
+      Arrays.sort(tempDocIdsArray);
+      return new SortedIntDocSet(tempDocIdsArray);
     }
 
     // This method iterates the context sortedDocIdSet
@@ -357,6 +383,8 @@ public class SmartSolrSuggester implements Accountable {
         tempDocIdsArray[count] = finalInt;
         count++;
       }
+
+      Arrays.sort(tempDocIdsArray);
 
       SortedIntDocSet curSortedIntDocSet = new SortedIntDocSet(tempDocIdsArray);
 
