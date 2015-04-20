@@ -13,7 +13,7 @@
    xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#" 
    xmlns:skos="http://www.w3.org/2004/02/skos/core#" 
    xmlns:wdrs="http://www.w3.org/2007/05/powder-s#" 
-   version="1.0" exclude-result-prefixes="xsl rdf rdfs owl dbpedia-owl foaf dcterms wdrs dbpprop ns8">
+   version="1.0" exclude-result-prefixes="xsl rdf dc dct rdfs owl dbpedia-owl foaf dcterms wdrs dbpprop ns8 skos">
    
    <xsl:output omit-xml-declaration="yes" indent="yes" />
    <xsl:template match="*|@*|text()">
@@ -21,9 +21,9 @@
    </xsl:template>
    
    <xsl:template match="/">
-      <add overwrite="true">
+      <!-- <add overwrite="true"> -->
       <xsl:for-each select="rdf:RDF/rdf:Description">
-      <xsl:if test="rdfs:label[@xml:lang='en']">
+      <xsl:if test="rdfs:label">
          <doc>
             <field name="uri">
                <xsl:value-of select="@rdf:about" />
@@ -33,7 +33,7 @@
          </doc>
       </xsl:if>
       </xsl:for-each>
-      </add>
+      <!-- </add> -->
    </xsl:template>
    
    <xsl:template match="/rdf:RDF/rdf:Description/rdfs:label[@xml:lang='en']">
