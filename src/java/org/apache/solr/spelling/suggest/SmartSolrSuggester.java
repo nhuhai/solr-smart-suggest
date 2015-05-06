@@ -225,14 +225,118 @@ public class SmartSolrSuggester implements Accountable {
 
     // Sort resutls
     if (options.context != null) {
+      SortedIntDocSet contextDocIdSet = this.getContextSortedDocIdSet(options.context);
+      List<LookupResult> zeroList = new ArrayList<LookupResult>();
+      List<LookupResult> nonZeroList = new ArrayList<LookupResult>();
+
+      for (LookupResult curResult : suggestions) {
+        curResult.score = this.getScore(curResult.payload, contextDocIdSet);
+        if (curResult.score == 0) {
+          zeroList.add(curResult);
+        } else if (curResult.score > 0) {
+          nonZeroList.add(curResult);
+        }
+      }
       ScoreComparator scoreComparator = new ScoreComparator(this.solrIndexSearcher, options.context);
-      Collections.sort(suggestions, scoreComparator);  
+      Collections.sort(nonZeroList, scoreComparator);
+
+      nonZeroList.addAll(zeroList);
+      suggestions = nonZeroList;
     }
     
 
     res.add(getName(), options.token.toString(), suggestions);
     return res;
   }
+
+  public int getScore(BytesRef payload, SortedIntDocSet contextDocIdSet) throws IOException {
+    byte[] payloadBytes = payload.bytes;
+    int tempDocIdsArrayLength = (int)(payloadBytes.length/4);
+    int[] tempDocIdsArray = new int[tempDocIdsArrayLength];
+    int score = 0;
+    int count = 0;
+
+    
+    for (int i = 0; i < payloadBytes.length; i+=4) {
+      int finalInt= (payloadBytes[i]<<24)&0xff000000|
+             (payloadBytes[i+1]<<16)&0x00ff0000|
+             (payloadBytes[i+2]<< 8)&0x0000ff00|
+             (payloadBytes[i+3]<< 0)&0x000000ff;
+
+      tempDocIdsArray[count] = finalInt;
+      count++;
+    }
+
+    Arrays.sort(tempDocIdsArray);
+
+    SortedIntDocSet curSortedIntDocSet = new SortedIntDocSet(tempDocIdsArray);
+
+    if (contextDocIdSet != null) {
+      int overlappedScore = curSortedIntDocSet.intersectionSize(contextDocIdSet);
+      score += overlappedScore * 10;
+    }
+
+    // if (this.relatedDocIdSet != null) {
+    //   int overlappedRelatedDocs = curSortedIntDocSet.intersectionSize(this.relatedDocIdSet);
+    //   score += overlappedRelatedDocs * 5;
+    // }
+    
+    return score;
+  }
+
+  public SortedIntDocSet getContextSortedDocIdSet(String context) throws IOException {
+      LOG.info("----> context = " + context);
+      Query query = new TermQuery(new Term("text", context.toLowerCase()));
+      DocSet tempDocSet = this.solrIndexSearcher.getDocSet(query);
+      
+      int[] tempDocIdsArray = new int[0];
+      
+      if (tempDocSet instanceof BitDocSet) {
+        BitDocSet bitDocSet = (BitDocSet)tempDocSet;
+        int numDocs = bitDocSet.size();
+        tempDocIdsArray = new int[numDocs];
+        Iterator iter = bitDocSet.iterator();
+        int curIdx = 0;
+        
+        while (iter.hasNext() && curIdx < numDocs) {
+          tempDocIdsArray[curIdx++] = (Integer)iter.next();
+        }
+        LOG.info("---> tempDocSet instanceof BitDocSet");
+      } else if (tempDocSet instanceof SortedIntDocSet) {
+        tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
+        LOG.info("---> tempDocSet instanceof SortedIntDocSet of length " + tempDocIdsArray.length);
+      } else {
+        LOG.info("---> tempDocSet instanceof SortedIntDocSet" + tempDocSet.getClass());
+      }
+
+      List<Integer> finalList = new ArrayList<Integer>();
+
+      for (int i = 0; i < tempDocIdsArray.length; i++) {
+        Document doc = this.solrIndexSearcher.getIndexReader().document(tempDocIdsArray[i]);
+
+        String uri = doc.get("uri");
+        System.out.println("uri = " + uri);
+        String[] relatedDocs = doc.getValues("relatedDocs");
+        System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
+
+        if (uri != null) {
+          finalList.add(uri.hashCode());
+        }
+
+        for (int j = 0; j < relatedDocs.length; j++) {
+          finalList.add(relatedDocs[j].hashCode());
+        }
+      }
+
+      tempDocIdsArray = new int[finalList.size()];
+      
+      for(int i = 0; i < tempDocIdsArray.length; i++) {
+        tempDocIdsArray[i] = finalList.get(i);
+      }
+
+      Arrays.sort(tempDocIdsArray);
+      return new SortedIntDocSet(tempDocIdsArray);
+    }
 
 
   private class ScoreComparator implements Comparator<LookupResult> {
@@ -246,27 +350,38 @@ public class SmartSolrSuggester implements Accountable {
       this.searcher = searcher;
       this.context = context;
       this.reader = searcher.getIndexReader();
-      this.contextDocIdSet = this.getContextSortedDocIdSet();
+      // this.contextDocIdSet = this.getContextSortedDocIdSet();
       //this.relatedDocIdSet = this.getContextRelatedDocs();
     }
 
     @Override
     public int compare(LookupResult left, LookupResult right) {
-      int leftScore = 0;
-      int rightScore = 0; 
+      // int leftScore = 0;
+      // int rightScore = 0; 
 
-      try {
-        leftScore += this.getScore(left.payload);
-        rightScore += this.getScore(right.payload);
-      } catch(IOException e) {
-        System.out.println("IOException");
-      }
+      // try {
+      //   // leftScore += this.getScore(left.payload);
+      //   // rightScore += this.getScore(right.payload);
+      //   leftScore += this.score;
+      //   rightScore += this.getScore(right.payload);
+      // } catch(IOException e) {
+      //   System.out.println("IOException");
+      // }
 
-      LOG.info("left = " + leftScore + " - right = " + rightScore);
+      // LOG.info("left = " + leftScore + " - right = " + rightScore);
+      LOG.info("left = " + left.score + " - right = " + right.score);
 
-      if (leftScore > rightScore) {
+      // if (leftScore > rightScore) {
+      //   return -1;
+      // } else if (leftScore == rightScore) {
+      //   return 0;
+      // } else {
+      //   return 1;
+      // }
+
+      if (left.score > right.score) {
         return -1;
-      } else if (leftScore == rightScore) {
+      } else if (left.score == right.score) {
         return 0;
       } else {
         return 1;
