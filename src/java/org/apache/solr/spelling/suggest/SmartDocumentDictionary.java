@@ -43,6 +43,9 @@ import java.util.Arrays;
 import org.apache.solr.search.SortedIntDocSet;
 import org.apache.solr.search.BitDocSet;
 import java.util.Iterator;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * <p>
@@ -133,7 +136,10 @@ public class SmartDocumentDictionary implements Dictionary {
     private final NumericDocValues weightValues;
 
     private int[] currentDocIdsArray;
-
+    private int[] curentContainingDocs;
+    private int[] currentRelatedDocs;
+    private ArrayList<Integer> containingDocsList;
+    private ArrayList<Integer> relatedDocsList;
     
     /**
      * Creates an iterator over term, weight and payload fields from the lucene
@@ -146,7 +152,7 @@ public class SmartDocumentDictionary implements Dictionary {
       docCount = reader.maxDoc() - 1;
       weightValues = (weightField != null) ? MultiDocValues.getNumericValues(reader, weightField) : null;
       liveDocs = (reader.leaves().size() > 0) ? MultiFields.getLiveDocs(reader) : null;
-      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField /*,"uri", "relatedDocs"*/});
+      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField, "uri", "relatedDocs"});
     }
 
     @Override
@@ -157,6 +163,16 @@ public class SmartDocumentDictionary implements Dictionary {
     @Override
     public Comparator<BytesRef> getComparator() {
       return null;
+    }
+
+    public int[] convertIntegers(List<Integer> integers) {
+      int[] ret = new int[integers.size()];
+      Iterator<Integer> iterator = integers.iterator();
+      for (int i = 0; i < ret.length; i++)
+      {
+          ret[i] = iterator.next().intValue();
+      }
+      return ret;
     }
 
     @Override
@@ -173,8 +189,9 @@ public class SmartDocumentDictionary implements Dictionary {
         BytesRef tempTerm = null;
         Set<BytesRef> tempContexts = new HashSet<>();
 
-        DocSet tempDocSet = null;
         int[] tempDocIdsArray = null;
+        int[] tempContainingDocs = null;
+        int[] tempRelatedDocs = null;
 
         if (hasPayloads) {
           IndexableField payload = doc.getField(payloadField);
@@ -201,15 +218,13 @@ public class SmartDocumentDictionary implements Dictionary {
         }
 
         if (fieldVal.stringValue() != null) {
-          // System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
-          // Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
-
-          // if (tempDocSet instanceof SortedIntDocSet) {
-          //   System.out.print("It's a SortedIntDocSet with length = ");
-          //   System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
-          //   tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
-          // }
+          // old way - not take of same term in multiple docs
           tempDocIdsArray = this.getRelatedDocIds(doc);
+
+          // new way - take care of same term in multiple docs
+          setContainingAndRelatedDocs(fieldVal.stringValue().toLowerCase());
+          tempContainingDocs = convertIntegers(containingDocsList);
+          tempRelatedDocs = convertIntegers(relatedDocsList);
         } else {
           System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;
         }
@@ -221,17 +236,78 @@ public class SmartDocumentDictionary implements Dictionary {
         currentWeight = getWeight(doc, currentDocId);
 
         currentDocIdsArray = tempDocIdsArray;
-        // System.out.print("currentDocIdsArray = ");
-        // System.out.println(Arrays.toString(currentDocIdsArray));
+        curentContainingDocs = tempContainingDocs;
+        currentRelatedDocs = tempRelatedDocs;
+
+        System.out.print("curentContainingDocs = ");
+        System.out.println(Arrays.toString(curentContainingDocs));
+
+        System.out.print("currentRelatedDocs = ");
+        System.out.println(Arrays.toString(currentRelatedDocs));
 
         return tempTerm;
       }
       return null;
     }
 
+    public void setContainingAndRelatedDocs(String queryTerm) throws IOException {
+      System.out.println(">>> FIELD STRING VALUE: " + queryTerm);
+      Query query = new TermQuery(new Term("text", queryTerm));      
+      DocSet tempDocSet  = searcher.getDocSet(query);
+      
+      Set<Integer> containingDocsSet = new HashSet<Integer>();
+      Set<Integer> relatedDocsset = new HashSet<Integer>();
+      
+      int[] localContainingDocs = null;
+      Document doc = null;
+
+      if (tempDocSet instanceof BitDocSet) {
+        System.out.println("====> BitDocSet");
+        BitDocSet bitDocSet = (BitDocSet)tempDocSet;
+        int numDocs = bitDocSet.size();
+        System.out.println("Size = " + numDocs);
+        localContainingDocs = new int[numDocs];
+        Iterator iter = bitDocSet.iterator();
+        int curIdx = 0;
+        
+        while (iter.hasNext() && curIdx < numDocs) {
+          localContainingDocs[curIdx++] = (Integer)iter.next();
+        }
+      } else if (tempDocSet instanceof SortedIntDocSet) {
+        System.out.print("=====> SortedIntDocSet with length = ");
+        System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+        localContainingDocs = ((SortedIntDocSet)tempDocSet).getDocs();
+      }
+
+      for (int i = 0; i < localContainingDocs.length; i++) {
+        doc = reader.document(localContainingDocs[i], getRelevantFields(new String [] {"uri", "relatedDocs"}));
+        String uri = doc.get("uri");
+        String[] relatedDocs = doc.getValues("relatedDocs");
+        
+        System.out.println(">>> URI = " + uri);
+        containingDocsSet.add(uri.hashCode());
+
+        if (relatedDocs != null) {
+          for (int j = 0; j < relatedDocs.length; j++) {
+            relatedDocsset.add(relatedDocs[j].hashCode());
+          }
+        }  
+      }
+
+      containingDocsList = new ArrayList<Integer>(containingDocsSet);
+      for (Integer curDocId : containingDocsList) {
+        relatedDocsset.remove(curDocId);
+      }
+      
+      relatedDocsList = new ArrayList<Integer>(relatedDocsset);
+
+      Collections.sort(containingDocsList);
+      Collections.sort(relatedDocsList);
+    }
+
     public int[] getRelatedDocIds(Document doc) throws IOException {
       String uri = doc.get("uri");
-      System.out.println(">>> URI = " + uri);
+      // System.out.println(">>> URI = " + uri);
       String[] relatedDocs = doc.getValues("relatedDocs");
       // System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
 
