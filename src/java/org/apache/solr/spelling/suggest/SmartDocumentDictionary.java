@@ -135,7 +135,7 @@ public class SmartDocumentDictionary implements Dictionary {
     private Set<BytesRef> currentContexts;
     private final NumericDocValues weightValues;
 
-    private int[] currentDocIdsArray;
+    // private int[] currentDocIdsArray;
     private int[] curentContainingDocs;
     private int[] currentRelatedDocs;
     private ArrayList<Integer> containingDocsList;
@@ -189,7 +189,7 @@ public class SmartDocumentDictionary implements Dictionary {
         BytesRef tempTerm = null;
         Set<BytesRef> tempContexts = new HashSet<>();
 
-        int[] tempDocIdsArray = null;
+        // int[] tempDocIdsArray = null;
         int[] tempContainingDocs = null;
         int[] tempRelatedDocs = null;
 
@@ -219,7 +219,7 @@ public class SmartDocumentDictionary implements Dictionary {
 
         if (fieldVal.stringValue() != null) {
           // old way - not take of same term in multiple docs
-          tempDocIdsArray = this.getRelatedDocIds(doc);
+          // tempDocIdsArray = this.getRelatedDocIds(doc);
 
           // new way - take care of same term in multiple docs
           setContainingAndRelatedDocs(fieldVal.stringValue().toLowerCase());
@@ -235,15 +235,15 @@ public class SmartDocumentDictionary implements Dictionary {
         currentContexts = tempContexts;
         currentWeight = getWeight(doc, currentDocId);
 
-        currentDocIdsArray = tempDocIdsArray;
+        // currentDocIdsArray = tempDocIdsArray;
         curentContainingDocs = tempContainingDocs;
         currentRelatedDocs = tempRelatedDocs;
 
-        System.out.print("curentContainingDocs = ");
-        System.out.println(Arrays.toString(curentContainingDocs));
+        // System.out.print("curentContainingDocs = ");
+        // System.out.println(Arrays.toString(curentContainingDocs));
 
-        System.out.print("currentRelatedDocs = ");
-        System.out.println(Arrays.toString(currentRelatedDocs));
+        // System.out.print("currentRelatedDocs = ");
+        // System.out.println(Arrays.toString(currentRelatedDocs));
 
         return tempTerm;
       }
@@ -345,8 +345,16 @@ public class SmartDocumentDictionary implements Dictionary {
       return hasPayloads;
     }
 
-    public int[] docIdsArray() {
-      return currentDocIdsArray;
+    // public int[] docIdsArray() {
+    //   return currentDocIdsArray;
+    // }
+
+    public int[] curentContainingDocs() {
+      return curentContainingDocs;
+    }
+
+    public int[] currentRelatedDocs() {
+      return currentRelatedDocs;
     }
     
     /** 
