@@ -146,7 +146,7 @@ public class SmartDocumentDictionary implements Dictionary {
       docCount = reader.maxDoc() - 1;
       weightValues = (weightField != null) ? MultiDocValues.getNumericValues(reader, weightField) : null;
       liveDocs = (reader.leaves().size() > 0) ? MultiFields.getLiveDocs(reader) : null;
-      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField, "uri", "relatedDocs"});
+      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField /*,"uri", "relatedDocs"*/});
     }
 
     @Override
@@ -201,7 +201,7 @@ public class SmartDocumentDictionary implements Dictionary {
         }
 
         if (fieldVal.stringValue() != null) {
-          System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
+          // System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
           // Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
 
           // if (tempDocSet instanceof SortedIntDocSet) {
@@ -221,8 +221,8 @@ public class SmartDocumentDictionary implements Dictionary {
         currentWeight = getWeight(doc, currentDocId);
 
         currentDocIdsArray = tempDocIdsArray;
-        System.out.print("currentDocIdsArray = ");
-        System.out.println(Arrays.toString(currentDocIdsArray));
+        // System.out.print("currentDocIdsArray = ");
+        // System.out.println(Arrays.toString(currentDocIdsArray));
 
         return tempTerm;
       }
@@ -231,9 +231,9 @@ public class SmartDocumentDictionary implements Dictionary {
 
     public int[] getRelatedDocIds(Document doc) throws IOException {
       String uri = doc.get("uri");
-      System.out.println("uri = " + uri);
+      System.out.println(">>> URI = " + uri);
       String[] relatedDocs = doc.getValues("relatedDocs");
-      System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
+      // System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
 
       int count = 0;
 

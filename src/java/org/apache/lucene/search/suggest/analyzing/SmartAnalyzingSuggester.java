@@ -467,11 +467,11 @@ public class SmartAnalyzingSuggester extends Lookup {
 
           // My additions
           int[] docIdsArray = ((DocumentInputIterator)iterator).docIdsArray();
-          System.out.println("docIdsArray: " + Arrays.toString(docIdsArray));
+          System.out.println("---> Label : " + surfaceForm.utf8ToString() + " -- docIdsArray: " + Arrays.toString(docIdsArray));
           // byte[] bytesArray = Util.int2byte(docIdsArray);
           // System.out.println("bytesArray length: " + bytesArray.length);
           // System.out.println("bytesArray: " + Arrays.toString(bytesArray));
-          IntsRef docIdsIntsRef = new IntsRef(docIdsArray, 0, docIdsArray.length);
+          // IntsRef docIdsIntsRef = new IntsRef(docIdsArray, 0, docIdsArray.length);
           //IntSequenceOutputs
 
 
@@ -484,6 +484,7 @@ public class SmartAnalyzingSuggester extends Lookup {
             requiredLength += payload.length + 2;
           } else {
             payload = null;
+            // change if used bitDocSet
             requiredLength += docIdsArray.length * 4 + 2;
           }
           
@@ -507,6 +508,7 @@ public class SmartAnalyzingSuggester extends Lookup {
             output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
             output.writeBytes(payload.bytes, payload.offset, payload.length);
           } else {
+            // change if used bitDocSet
             output.writeShort((short) surfaceForm.length);
             output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
             for (int k = 0; k < docIdsArray.length; k++) {
@@ -514,7 +516,7 @@ public class SmartAnalyzingSuggester extends Lookup {
             }
           }
 
-          System.out.println("requiredLength = " + requiredLength + " AND output.getPosition() = " + output.getPosition());
+          // System.out.println("requiredLength = " + requiredLength + " AND output.getPosition() = " + output.getPosition());
 
           assert output.getPosition() == requiredLength: output.getPosition() + " vs " + requiredLength;
           writer.write(buffer, 0, output.getPosition());
@@ -607,12 +609,12 @@ public class SmartAnalyzingSuggester extends Lookup {
           int docIdsArrayOffset = input.getPosition() + surface.length;
           int docIdsArrayLength = scratch.length() - docIdsArrayOffset;
 
-          System.out.println("scratch length = " + scratch.length() + " &&& docIdsArrayOffset = " + docIdsArrayOffset + 
-            " &&& surface.length = " + surface.length +  "&&& docIdsArrayLength = " + docIdsArrayLength);
+          // System.out.println("scratch length = " + scratch.length() + " &&& docIdsArrayOffset = " + docIdsArrayOffset + 
+            // " &&& surface.length = " + surface.length +  "&&& docIdsArrayLength = " + docIdsArrayLength);
 
           BytesRef br = new BytesRef(surface.length + 1 + docIdsArrayLength);
 
-          System.out.print("output2 total length = ");
+          // System.out.print("output2 total length = ");
           System.out.println(surface.length + 1 + docIdsArrayLength);
 
           System.arraycopy(surface.bytes, surface.offset, br.bytes, 0, surface.length);
@@ -692,7 +694,7 @@ public class SmartAnalyzingSuggester extends Lookup {
       result = new LookupResult(spare.toString(), decodeWeight(output1), payload);
     } else {
       // Add code here
-      System.out.println("OUTPUT2 offset = " + output2.offset + ", length = " + output2.length);
+      // System.out.println("OUTPUT2 offset = " + output2.offset + ", length = " + output2.length);
       int sepIndex = -1;
       for (int i=0; i < output2.length; i++) {
         if (output2.bytes[output2.offset+i] == PAYLOAD_SEP) {
@@ -700,14 +702,14 @@ public class SmartAnalyzingSuggester extends Lookup {
           break;
         }
       }
-      System.out.println("sepIndex = " + sepIndex);
+      // System.out.println("sepIndex = " + sepIndex);
       assert sepIndex != -1;
       spare.grow(sepIndex);
 
       final int docIdsArrayLength = output2.length - sepIndex - 1;
-      System.out.println("docIdsArrayLength = " + docIdsArrayLength);
+      // System.out.println("docIdsArrayLength = " + docIdsArrayLength);
       spare.copyUTF8Bytes(output2.bytes, output2.offset, sepIndex);
-      System.out.println("SPARE.toString = " + spare.toString()) ;
+      // System.out.println("SPARE.toString = " + spare.toString()) ;
 
       BytesRef docIdsArrayBytesRef = new BytesRef(docIdsArrayLength);
       System.arraycopy(output2.bytes, sepIndex+1, docIdsArrayBytesRef.bytes, 0, docIdsArrayLength);
@@ -769,7 +771,7 @@ public class SmartAnalyzingSuggester extends Lookup {
 
       final CharsRefBuilder spare = new CharsRefBuilder();
 
-      System.out.println("  now intersect exactFirst=" + exactFirst);
+      // System.out.println("  now intersect exactFirst=" + exactFirst);
     
       // Intersect automaton w/ suggest wFST and get all
       // prefix starting nodes & their outputs:
@@ -783,7 +785,7 @@ public class SmartAnalyzingSuggester extends Lookup {
 
       List<FSTUtil.Path<Pair<Long,BytesRef>>> prefixPaths = FSTUtil.intersectPrefixPaths(convertAutomaton(lookupAutomaton), fst);
 
-      System.out.println("  prefixPaths: " + prefixPaths.size());
+      // System.out.println("  prefixPaths: " + prefixPaths.size());
 
       if (exactFirst) {
 
@@ -879,7 +881,7 @@ public class SmartAnalyzingSuggester extends Lookup {
       };
 
       prefixPaths = getFullPrefixPaths(prefixPaths, lookupAutomaton, fst);
-      System.out.println("  prefixPaths 2  = " + prefixPaths.size());
+      // System.out.println("  prefixPaths 2  = " + prefixPaths.size());
       
       for (FSTUtil.Path<Pair<Long,BytesRef>> path : prefixPaths) {
         searcher.addStartPaths(path.fstNode, path.output, true, path.input);
@@ -895,7 +897,7 @@ public class SmartAnalyzingSuggester extends Lookup {
         // TODO: for fuzzy case would be nice to return
         // how many edits were required
 
-        System.out.println("    result=" + result);
+        // System.out.println("    result=" + result);
         results.add(result);
 
         if (results.size() == num) {

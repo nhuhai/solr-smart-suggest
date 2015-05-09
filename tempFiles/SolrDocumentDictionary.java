@@ -199,12 +199,12 @@ public class SolrDocumentDictionary implements Dictionary {
 
         IndexableField fieldVal = doc.getField(field);
         if (fieldVal == null || (fieldVal.binaryValue() == null && fieldVal.stringValue() == null)) {
-          System.out.println("Title FIELD IS NULL");
+          // System.out.println("Title FIELD IS NULL");
           continue;
         }
 
         if (fieldVal.stringValue() != null) {
-          System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
+          // System.out.println(">>> FIELD STRING VALUE: " + fieldVal.stringValue());
           Query query = new TermQuery(new Term("text", fieldVal.stringValue().toLowerCase()));
 
           tempDocSet = searcher.getDocSet(query);
@@ -228,11 +228,10 @@ public class SolrDocumentDictionary implements Dictionary {
             // }
             // System.out.println("]");
             // System.out.println("Num bits = " + bitDocSet.getBits().length() + ", Num 64-bit words = " + bitDocSet.getBits().getNumWords());
-          }
-
-          if (tempDocSet instanceof SortedIntDocSet) {
-            System.out.print("It's a SortedIntDocSet with length = ");
-            System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+          } else if (tempDocSet instanceof SortedIntDocSet) {
+            // System.out.print("It's a SortedIntDocSet with length = ");
+            // System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+            tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
           }
         } else {
           System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;
