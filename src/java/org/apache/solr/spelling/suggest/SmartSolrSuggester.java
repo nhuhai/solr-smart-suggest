@@ -259,7 +259,9 @@ public class SmartSolrSuggester implements Accountable {
       // System.out.println(">>> #17 suggestions = " + suggestions);
     }
     
-
+    if (suggestions.size() > 50) {
+      suggestions = suggestions.subList(0, 50);
+    } 
     res.add(getName(), options.token.toString(), suggestions);
     return res;
   }
