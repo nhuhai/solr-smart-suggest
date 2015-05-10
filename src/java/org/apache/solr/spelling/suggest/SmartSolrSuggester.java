@@ -105,6 +105,8 @@ public class SmartSolrSuggester implements Accountable {
   private SolrIndexSearcher solrIndexSearcher;
   private ArrayList<Integer> containingDocsList;
   private ArrayList<Integer> relatedDocsList;
+  private int[] contextContainingDocsArr;
+  private int[] contextRelatedDocsArr;
 
   public void setSolrIndexSearcher(SolrIndexSearcher solrIndexSearcher) {
     System.out.println("setSolrIndexSearcher()");
@@ -230,33 +232,55 @@ public class SmartSolrSuggester implements Accountable {
     // Sort resutls
     if (options.context != null) {
       this.setContainingAndRelatedDocs(options.context.toLowerCase());
-      System.out.println("#12 (Lookup - SmartSolrSuggester) Context containingDocsList = " + containingDocsList);
-      System.out.println("#13 (Lookup - SmartSolrSuggester) Context relatedDocsList = " + relatedDocsList);
+      contextContainingDocsArr = convertIntegers(containingDocsList);
+      contextRelatedDocsArr = convertIntegers(relatedDocsList);
 
-      int[] containingDocsArr = convertIntegers(containingDocsList);
-      int[] relatedDocsArr = convertIntegers(relatedDocsList);
+      // System.out.println("#8 (Lookup - SmartSolrSuggester) Context containingDocsArr = " + Arrays.toString(contextContainingDocsArr));
+      // System.out.println("#9 (Lookup - SmartSolrSuggester) Context relatedDocsArr = " + Arrays.toString(contextRelatedDocsArr));
 
       List<LookupResult> zeroList = new ArrayList<LookupResult>();
       List<LookupResult> nonZeroList = new ArrayList<LookupResult>();
 
       for (LookupResult curResult : suggestions) {
-        curResult.score = this.getScore(curResult.containingDocsBytesRef, containingDocsArr, relatedDocsArr);
+        curResult.score = this.getScore(curResult.containingDocsBytesRef);
+        // System.out.println(">>> #14 curResult.score = " + curResult.score);
         if (curResult.score == 0) {
           zeroList.add(curResult);
         } else if (curResult.score > 0) {
           nonZeroList.add(curResult);
         }
       }
-      ScoreComparator scoreComparator = new ScoreComparator(this.solrIndexSearcher, options.context);
+
+      ScoreComparator scoreComparator = new ScoreComparator();
       Collections.sort(nonZeroList, scoreComparator);
 
       nonZeroList.addAll(zeroList);
       suggestions = nonZeroList; 
+      // System.out.println(">>> #17 suggestions = " + suggestions);
     }
     
 
     res.add(getName(), options.token.toString(), suggestions);
     return res;
+  }
+
+  private class ScoreComparator implements Comparator<LookupResult> {
+    public ScoreComparator() throws IOException {
+      // System.out.println(">>> #15 ScoreComparator()");
+    }
+
+    @Override
+    public int compare(LookupResult left, LookupResult right) {
+      // System.out.println(">>> #16 compare() left = " + left.score + " - right = " + right.score);
+
+      if (left.score > right.score) {
+        return -1;
+      } else if (left.score == right.score) {
+        return 0;
+      } else {
+        return 1;
+      }
+    }
   }
 
   public int[] convertIntegers(List<Integer> integers) {
@@ -280,10 +304,10 @@ public class SmartSolrSuggester implements Accountable {
     Document doc = null;
 
     if (tempDocSet instanceof BitDocSet) {
-      System.out.println(">>> #10 (Lookup - SmartSolrSuggester) BitDocSet");
+      // System.out.print(">>> #7 (Lookup - SmartSolrSuggester) BitDocSet");
       BitDocSet bitDocSet = (BitDocSet)tempDocSet;
       int numDocs = bitDocSet.size();
-      System.out.println("Size = " + numDocs);
+      // System.out.println(" - length = " + numDocs);
       localContainingDocs = new int[numDocs];
       Iterator iter = bitDocSet.iterator();
       int curIdx = 0;
@@ -292,7 +316,7 @@ public class SmartSolrSuggester implements Accountable {
         localContainingDocs[curIdx++] = (Integer)iter.next();
       }
     } else if (tempDocSet instanceof SortedIntDocSet) {
-      System.out.print(">>> #11 (Lookup - SmartSolrSuggester) SortedIntDocSet with length = ");
+      // System.out.print(">>> #7 (Lookup - SmartSolrSuggester) SortedIntDocSet - length = ");
       System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
       localContainingDocs = ((SortedIntDocSet)tempDocSet).getDocs();
     }
@@ -302,7 +326,6 @@ public class SmartSolrSuggester implements Accountable {
       String uri = doc.get("uri");
       String[] relatedDocs = doc.getValues("relatedDocs");
       
-      // System.out.println(">>> URI = " + uri);
       containingDocsSet.add(uri.hashCode());
 
       if (relatedDocs != null) {
@@ -323,45 +346,49 @@ public class SmartSolrSuggester implements Accountable {
     Collections.sort(relatedDocsList);
   }
 
-  public int getScore(BytesRef containingDocsBytesRef, int[] containingDocsArr, int[] relatedDocsArr) throws IOException {
-    byte[] containingDocsBytes = containingDocsBytesRef.bytes;
-    int tempDocIdsArrayLength = (int)(containingDocsBytes.length/4);
-    int[] tempDocIdsArray = new int[tempDocIdsArrayLength];
+  public int getScore(BytesRef currentSuggestBytesRef) throws IOException {
+    byte[] currentSuggestBytes = currentSuggestBytesRef.bytes;
+    int currentSuggestDocsLength = (int)(currentSuggestBytes.length/4);
+    int[] currentSuggestDocs = new int[currentSuggestDocsLength];
     int score = 0;
     int count = 0;
 
-    for (int i = 0; i < containingDocsBytes.length; i+=4) {
-      int finalInt= (containingDocsBytes[i]<<24)&0xff000000|
-             (containingDocsBytes[i+1]<<16)&0x00ff0000|
-             (containingDocsBytes[i+2]<< 8)&0x0000ff00|
-             (containingDocsBytes[i+3]<< 0)&0x000000ff;
+    for (int i = 0; i < currentSuggestBytes.length; i+=4) {
+      int finalInt= (currentSuggestBytes[i]<<24)&0xff000000|
+             (currentSuggestBytes[i+1]<<16)&0x00ff0000|
+             (currentSuggestBytes[i+2]<< 8)&0x0000ff00|
+             (currentSuggestBytes[i+3]<< 0)&0x000000ff;
 
-      tempDocIdsArray[count] = finalInt;
+      currentSuggestDocs[count] = finalInt;
       count++;
     }
 
-    Arrays.sort(tempDocIdsArray);
+    Arrays.sort(currentSuggestDocs);
+    // System.out.println(">>> #10 (Lookup - SmartSolrSuggester.getScore) current suggested term docs = " + Arrays.toString(currentSuggestDocs));
 
-    if (containingDocsArr != null) {
+    if (contextContainingDocsArr != null) {
       int overlappedScore;
-      if (tempDocIdsArray.length < containingDocsArr.length) {
-        overlappedScore = SortedIntDocSet.intersectionSize(tempDocIdsArray, containingDocsArr);
-      } else {
-        overlappedScore = SortedIntDocSet.intersectionSize(containingDocsArr, tempDocIdsArray);
+      if (currentSuggestDocs.length < contextContainingDocsArr.length) {
+        overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextContainingDocsArr);
+      } else {  
+        overlappedScore = SortedIntDocSet.intersectionSize(contextContainingDocsArr, currentSuggestDocs);
       }
       score += overlappedScore * 10;
+      // System.out.println(">>> #11 first score = " + score);
     }
 
-    if (relatedDocsArr != null) {
+    if (contextRelatedDocsArr != null) {
       int overlappedScore;
-      if (containingDocsArr.length < relatedDocsArr.length) {
-        overlappedScore = SortedIntDocSet.intersectionSize(containingDocsArr, relatedDocsArr);
+      if (currentSuggestDocs.length < contextRelatedDocsArr.length) {
+        overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextRelatedDocsArr);
       } else {
-        overlappedScore = SortedIntDocSet.intersectionSize(relatedDocsArr, containingDocsArr);
+        overlappedScore = SortedIntDocSet.intersectionSize(contextRelatedDocsArr, currentSuggestDocs);
       }
       score += overlappedScore * 5;
+      // System.out.println(">>> #12 mid-score = " + score);
     }
     
+    // System.out.println(">>> #13 final score = " + score);
     return score;
   }
 
@@ -427,185 +454,6 @@ public class SmartSolrSuggester implements Accountable {
 
     Arrays.sort(tempDocIdsArray);
     return new SortedIntDocSet(tempDocIdsArray);
-  }
-
-
-  private class ScoreComparator implements Comparator<LookupResult> {
-    private final SolrIndexSearcher searcher;
-    private final String context;
-    private SortedIntDocSet contextDocIdSet;
-    private SortedIntDocSet relatedDocIdSet;
-    private IndexReader reader;
-
-    public ScoreComparator(SolrIndexSearcher searcher, String context) throws IOException {
-      this.searcher = searcher;
-      this.context = context;
-      this.reader = searcher.getIndexReader();
-      // this.contextDocIdSet = this.getContextSortedDocIdSet();
-      //this.relatedDocIdSet = this.getContextRelatedDocs();
-    }
-
-    @Override
-    public int compare(LookupResult left, LookupResult right) {
-      // int leftScore = 0;
-      // int rightScore = 0; 
-
-      // try {
-      //   // leftScore += this.getScore(left.payload);
-      //   // rightScore += this.getScore(right.payload);
-      //   leftScore += this.score;
-      //   rightScore += this.getScore(right.payload);
-      // } catch(IOException e) {
-      //   System.out.println("IOException");
-      // }
-
-      // LOG.info("left = " + leftScore + " - right = " + rightScore);
-      LOG.info("left = " + left.score + " - right = " + right.score);
-
-      // if (leftScore > rightScore) {
-      //   return -1;
-      // } else if (leftScore == rightScore) {
-      //   return 0;
-      // } else {
-      //   return 1;
-      // }
-
-      if (left.score > right.score) {
-        return -1;
-      } else if (left.score == right.score) {
-        return 0;
-      } else {
-        return 1;
-      }
-    }
-
-    public SortedIntDocSet getContextSortedDocIdSet() throws IOException {
-      LOG.info("----> context = " + this.context);
-      Query query = new TermQuery(new Term("text", this.context.toLowerCase()));
-      DocSet tempDocSet = searcher.getDocSet(query);
-      
-      int[] tempDocIdsArray = new int[0];
-      
-      if (tempDocSet instanceof BitDocSet) {
-        BitDocSet bitDocSet = (BitDocSet)tempDocSet;
-        int numDocs = bitDocSet.size();
-        tempDocIdsArray = new int[numDocs];
-        Iterator iter = bitDocSet.iterator();
-        int curIdx = 0;
-        
-        while (iter.hasNext() && curIdx < numDocs) {
-          tempDocIdsArray[curIdx++] = (Integer)iter.next();
-        }
-        LOG.info("---> tempDocSet instanceof BitDocSet");
-      } else if (tempDocSet instanceof SortedIntDocSet) {
-        tempDocIdsArray = ((SortedIntDocSet)tempDocSet).getDocs();
-        LOG.info("---> tempDocSet instanceof SortedIntDocSet of length " + tempDocIdsArray.length);
-      } else {
-        LOG.info("---> tempDocSet instanceof SortedIntDocSet" + tempDocSet.getClass());
-      }
-
-      List<Integer> finalList = new ArrayList<Integer>();
-
-      for (int i = 0; i < tempDocIdsArray.length; i++) {
-        Document doc = this.reader.document(tempDocIdsArray[i]);
-
-        String uri = doc.get("uri");
-        System.out.println("uri = " + uri);
-        String[] relatedDocs = doc.getValues("relatedDocs");
-        System.out.println("relatedDocs = " + Arrays.toString(relatedDocs));
-
-        if (uri != null) {
-          finalList.add(uri.hashCode());
-        }
-
-        for (int j = 0; j < relatedDocs.length; j++) {
-          finalList.add(relatedDocs[j].hashCode());
-        }
-      }
-
-      tempDocIdsArray = new int[finalList.size()];
-      
-      for(int i = 0; i < tempDocIdsArray.length; i++) {
-        tempDocIdsArray[i] = finalList.get(i);
-      }
-
-      Arrays.sort(tempDocIdsArray);
-      return new SortedIntDocSet(tempDocIdsArray);
-    }
-
-    // This method iterates the context sortedDocIdSet
-    // For each docId in that set, get the related docs of that doc 
-    // by issuing a query for Lucene internal ids to get all the docs
-    // then get the relatedDocs of those.
-    // Before that, we need to append the relatedDocs field to each doc
-    // during the build process.
-    public SortedIntDocSet getContextRelatedDocs() throws IOException {
-      List<Integer> finalRelatedDocs = new ArrayList<Integer>();
-      if (contextDocIdSet != null && this.reader != null) {
-        int[] docIds = contextDocIdSet.getDocs();
-        for (int i = 0; i < docIds.length; i++) {
-          LOG.info("----> Context doc Id: " + docIds[i]);
-          Document doc = this.reader.document(i);
-          LOG.info("----> Doc: " + doc);
-          String[] relatedDocs = doc.getValues("relatedDocs");
-          if (relatedDocs.length > 0) {
-            for (int j = 0; j < relatedDocs.length; j++) {
-              BytesRef uidBytesRef = new BytesRef(relatedDocs[j]);
-              int docID = (int)(solrIndexSearcher.lookupId(uidBytesRef));
-              if (docID != -1) {
-                finalRelatedDocs.add(docID);
-              }
-            }
-          } else {
-            LOG.info("----> Related Docs is empty");
-          }
-        }
-      }
-
-      int[] ret = new int[finalRelatedDocs.size()];
-      int k = 0;
-      for (Integer e : finalRelatedDocs) {
-        ret[k++] = e.intValue();
-      }
-      Arrays.sort(ret);
-      LOG.info("----> Related DocIds: " + Arrays.toString(ret));
-      return new SortedIntDocSet(ret);
-    }
-
-    public int getScore(BytesRef payload) throws IOException {
-      byte[] payloadBytes = payload.bytes;
-      int tempDocIdsArrayLength = (int)(payloadBytes.length/4);
-      int[] tempDocIdsArray = new int[tempDocIdsArrayLength];
-      int score = 0;
-      int count = 0;
-
-      
-      for (int i = 0; i < payloadBytes.length; i+=4) {
-        int finalInt= (payloadBytes[i]<<24)&0xff000000|
-               (payloadBytes[i+1]<<16)&0x00ff0000|
-               (payloadBytes[i+2]<< 8)&0x0000ff00|
-               (payloadBytes[i+3]<< 0)&0x000000ff;
-
-        tempDocIdsArray[count] = finalInt;
-        count++;
-      }
-
-      Arrays.sort(tempDocIdsArray);
-
-      SortedIntDocSet curSortedIntDocSet = new SortedIntDocSet(tempDocIdsArray);
-
-      if (this.contextDocIdSet != null) {
-        int overlappedScore = curSortedIntDocSet.intersectionSize(this.contextDocIdSet);
-        score += overlappedScore * 10;
-      }
-
-      if (this.relatedDocIdSet != null) {
-        int overlappedRelatedDocs = curSortedIntDocSet.intersectionSize(this.relatedDocIdSet);
-        score += overlappedRelatedDocs * 5;
-      }
-      
-      return score;
-    }
   }
 
   /** Returns the unique name of the suggester */

@@ -461,25 +461,15 @@ public class SmartAnalyzingSuggester extends Lookup {
 
           // compute the required length:
           // analyzed sequence + weight (4) + surface + analyzedLength (short)
-          // a short is 2 bypes
+          // a short is 2 bytes
           int requiredLength = 2 + analyzedLength + 4 + surfaceForm.length;
 
           BytesRef payload;
 
-          // My additions
-          // int[] docIdsArray = ((DocumentInputIterator)iterator).docIdsArray();
+          // Smart Solr Suggester Addition
           int[] curentContainingDocs = ((DocumentInputIterator)iterator).curentContainingDocs();
-          int[] currentRelatedDocs = ((DocumentInputIterator)iterator).currentRelatedDocs();
-          System.out.println(">>> #5 (SmartAnalyzingSuggester) LABEL (WRITE Step) : " + surfaceForm.utf8ToString());
-          System.out.println(">>> #6 (SmartAnalyzingSuggester) curentContainingDocs (length = " + curentContainingDocs.length + ") :" + Arrays.toString(curentContainingDocs));
-          System.out.println(">>> #7 (SmartAnalyzingSuggester) currentRelatedDocs (length =" + currentRelatedDocs.length + ") :" + Arrays.toString(currentRelatedDocs));
-
-          // byte[] bytesArray = Util.int2byte(docIdsArray);
-          // System.out.println("bytesArray length: " + bytesArray.length);
-          // System.out.println("bytesArray: " + Arrays.toString(bytesArray));
-          // IntsRef docIdsIntsRef = new IntsRef(docIdsArray, 0, docIdsArray.length);
-          //IntSequenceOutputs
-
+          System.out.println(">>> #4 (SmartAnalyzingSuggester) LABEL (WRITE Step) : " + surfaceForm.utf8ToString());
+          System.out.println(">>> #5 (SmartAnalyzingSuggester) curentContainingDocs (length = " + curentContainingDocs.length + ") :" + Arrays.toString(curentContainingDocs));
 
           if (hasPayloads) {
             if (surfaceForm.length > (Short.MAX_VALUE-2)) {
@@ -496,11 +486,8 @@ public class SmartAnalyzingSuggester extends Lookup {
                                   (Short.MAX_VALUE-1) + " in length (got " + curentContainingDocs.length + ")");
             }
             // 2 is the length in short of surfaceForm
-            // 2 for currentContainingDocs length
-            // length of containingDocs
             // containingDocs content
-            // relatedDocs
-            requiredLength += 2 + 2 + curentContainingDocs.length * 4 + currentRelatedDocs.length * 4;
+            requiredLength += 2 + curentContainingDocs.length * 4;
           }
           
           buffer = ArrayUtil.grow(buffer, requiredLength);
@@ -526,17 +513,10 @@ public class SmartAnalyzingSuggester extends Lookup {
             // change if used bitDocSet
             output.writeShort((short) surfaceForm.length);
             output.writeBytes(surfaceForm.bytes, surfaceForm.offset, surfaceForm.length);
-            output.writeShort((short) (curentContainingDocs.length * 4));
             for (int k = 0; k < curentContainingDocs.length; k++) {
               output.writeInt(curentContainingDocs[k]);
             }
-
-            for (int k = 0; k < currentRelatedDocs.length; k++) {
-              output.writeInt(currentRelatedDocs[k]);
-            }
           }
-
-          // System.out.println("requiredLength = " + requiredLength + " AND output.getPosition() = " + output.getPosition());
 
           assert output.getPosition() == requiredLength: output.getPosition() + " vs " + requiredLength;
           writer.write(buffer, 0, output.getPosition());
@@ -624,48 +604,30 @@ public class SmartAnalyzingSuggester extends Lookup {
         analyzed.append((byte) dedup);
 
         Util.toIntsRef(analyzed.get(), scratchInts);
-        System.out.println(">>> #8 (SmartAnalyzingSuggester) ADD: " + scratchInts.get() + " -> " + cost + ": " + surface.utf8ToString());
+        System.out.println(">>> #6 (SmartAnalyzingSuggester) ADD: " + scratchInts.get() + " -> " + cost + ": " + surface.utf8ToString());
         if (!hasPayloads) {
-          // put a separator between containing and related docs
+          int containingDocsOffset = input.getPosition() + surface.length;
+          int containingDocsLength = scratch.length() - containingDocsOffset;
+          
+          System.out.println(">>> (SmartAnalyzingSuggester) containingDocsLength = " + containingDocsLength);
+          System.out.println(">>> (SmartAnalyzingSuggester) containingDocsOffset = " + containingDocsOffset);
+          System.out.println(">>> (SmartAnalyzingSuggester) scratch.length  = " + scratch.length());
 
-          input.setPosition(input.getPosition() + surface.length);
-          // System.out.println("Current position = " + input.getPosition());
-
-          int containingDocsLength = input.readShort();
-          int containingDocsOffset = input.getPosition();
-
-          // System.out.println("containingDocsLength = " + containingDocsLength);
-          // System.out.println("containingDocsOffset = " + containingDocsOffset);
-          // System.out.println("scrat.length  = " + scratch.length());
-
-          int relatedDocsLength = scratch.length() - (containingDocsOffset + containingDocsLength);
-          int relatedDocsOffset = input.getPosition() + containingDocsLength;
-
-          // System.out.println("relatedDocsLength = " + relatedDocsLength);
-          // System.out.println("relatedDocsOffset = " + relatedDocsOffset);
-
-          // System.out.println(">>>>>> LABEL (READ Step) : " + surface.utf8ToString());
-          // System.out.println(" ++ curentContainingDocs length: " + containingDocsLength/4);
-          // System.out.println(" ++ currentRelatedDocs length: " + relatedDocsLength/4);
+          System.out.println(">>> (SmartAnalyzingSuggester) LABEL (READ Step) : " + surface.utf8ToString());
+          System.out.println(">>> (SmartAnalyzingSuggester) curentContainingDocs length: " + containingDocsLength/4);
 
           // System.out.println("scratch length = " + scratch.length() + " &&& docIdsArrayOffset = " + docIdsArrayOffset + 
           // " &&& surface.length = " + surface.length +  "&&& docIdsArrayLength = " + docIdsArrayLength);
 
-          BytesRef br = new BytesRef(surface.length + 1 + containingDocsLength + 1 + relatedDocsLength);
-
-          // System.out.print("output2 total length = ");
-          // System.out.println(surface.length + 1 + docIdsArrayLength);
+          BytesRef br = new BytesRef(surface.length + 1 + containingDocsLength);
 
           // copy surface bytes
           System.arraycopy(surface.bytes, surface.offset, br.bytes, 0, surface.length);
           int presentPosition = surface.length;
           br.bytes[presentPosition] = PAYLOAD_SEP;
+
           // copy containingDocs bytes
           System.arraycopy(scratch.bytes(), containingDocsOffset, br.bytes, presentPosition+1, containingDocsLength);
-          presentPosition += containingDocsLength;
-          br.bytes[presentPosition] = PAYLOAD_SEP;
-          // copy relatedDocs bytes
-          System.arraycopy(scratch.bytes(), relatedDocsOffset, br.bytes, presentPosition+1, relatedDocsLength);
           // finally set the length for br BytesRef
           br.length = br.bytes.length;
           builder.add(scratchInts.get(), outputs.newPair(cost, br));
@@ -748,19 +710,10 @@ public class SmartAnalyzingSuggester extends Lookup {
         }
       }
 
-      int secondSepIndex = -1;
-      for (int i = sepIndex + 1; i < output2.length; i++) {
-        if (output2.bytes[output2.offset+i] == PAYLOAD_SEP) {
-          secondSepIndex = i;
-          break;
-        }
-      }
-
       assert sepIndex != -1;
       spare.grow(sepIndex);
 
-      final int containingDocsLength = secondSepIndex - sepIndex; 
-      final int relatedDocsLength = output2.length - secondSepIndex - 1;
+      final int containingDocsLength = output2.length - sepIndex - 1; 
       
       // copy surfaceForm
       spare.copyUTF8Bytes(output2.bytes, output2.offset, sepIndex); 
@@ -770,14 +723,8 @@ public class SmartAnalyzingSuggester extends Lookup {
       System.arraycopy(output2.bytes, sepIndex+1, containingDocsBytesRef.bytes, 0, containingDocsLength); 
       containingDocsBytesRef.length = containingDocsLength;
 
-      // copy relatedDocs
-      BytesRef relatedDocsBytesRef = new BytesRef(relatedDocsLength);
-      System.arraycopy(output2.bytes, secondSepIndex+1, relatedDocsBytesRef.bytes, 0, relatedDocsLength); 
-      relatedDocsBytesRef.length = relatedDocsLength;
-
       result = new LookupResult(spare.toString(), decodeWeight(output1));
       result.containingDocsBytesRef = containingDocsBytesRef;
-      result.relatedDocsBytesRef = relatedDocsBytesRef;
     }
 
     return result;

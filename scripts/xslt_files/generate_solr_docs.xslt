@@ -36,7 +36,7 @@
       <!-- </add> -->
    </xsl:template>
    
-   <xsl:template match="/rdf:RDF/rdf:Description/rdfs:label[@xml:lang='en']">
+   <xsl:template match="/rdf:RDF/rdf:Description/rdfs:label[not(@*)]|/rdf:RDF/rdf:Description/rdfs:label[@xml:lang='en']">
       <field name="rdfs_label_text">
          <xsl:value-of select="." />
       </field>

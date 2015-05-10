@@ -137,9 +137,7 @@ public class SmartDocumentDictionary implements Dictionary {
 
     // private int[] currentDocIdsArray;
     private int[] curentContainingDocs;
-    private int[] currentRelatedDocs;
     private ArrayList<Integer> containingDocsList;
-    private ArrayList<Integer> relatedDocsList;
     
     /**
      * Creates an iterator over term, weight and payload fields from the lucene
@@ -152,7 +150,7 @@ public class SmartDocumentDictionary implements Dictionary {
       docCount = reader.maxDoc() - 1;
       weightValues = (weightField != null) ? MultiDocValues.getNumericValues(reader, weightField) : null;
       liveDocs = (reader.leaves().size() > 0) ? MultiFields.getLiveDocs(reader) : null;
-      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField, "uri", "relatedDocs"});
+      relevantFields = getRelevantFields(new String [] {field, weightField, payloadField, contextsField});
     }
 
     @Override
@@ -189,9 +187,7 @@ public class SmartDocumentDictionary implements Dictionary {
         BytesRef tempTerm = null;
         Set<BytesRef> tempContexts = new HashSet<>();
 
-        // int[] tempDocIdsArray = null;
         int[] tempContainingDocs = null;
-        int[] tempRelatedDocs = null;
 
         if (hasPayloads) {
           IndexableField payload = doc.getField(payloadField);
@@ -218,13 +214,9 @@ public class SmartDocumentDictionary implements Dictionary {
         }
 
         if (fieldVal.stringValue() != null) {
-          // old way - not take of same term in multiple docs
-          // tempDocIdsArray = this.getRelatedDocIds(doc);
-
           // new way - take care of same term in multiple docs
-          setContainingAndRelatedDocs(fieldVal.stringValue().toLowerCase());
+          setContainingDocs(fieldVal.stringValue().toLowerCase());
           tempContainingDocs = convertIntegers(containingDocsList);
-          tempRelatedDocs = convertIntegers(relatedDocsList);
         } else {
           System.out.println(">>> FIELD BINARY VALUE: " + fieldVal.binaryValue());;
         }
@@ -237,11 +229,8 @@ public class SmartDocumentDictionary implements Dictionary {
 
         // currentDocIdsArray = tempDocIdsArray;
         curentContainingDocs = tempContainingDocs;
-        currentRelatedDocs = tempRelatedDocs;
 
         System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
-        System.out.println(">>> #4 (SmartDocumentDictionary) currentRelatedDocs.length = " + currentRelatedDocs.length);
-
 
         // System.out.print("curentContainingDocs = ");
         // System.out.println(Arrays.toString(curentContainingDocs));
@@ -254,22 +243,21 @@ public class SmartDocumentDictionary implements Dictionary {
       return null;
     }
 
-    public void setContainingAndRelatedDocs(String queryTerm) throws IOException {
+    public void setContainingDocs(String queryTerm) throws IOException {
       System.out.println(">>> #1 (SmartDocumentDictionary) FIELD STRING VALUE  - : " + queryTerm);
       Query query = new TermQuery(new Term("text", queryTerm));      
       DocSet tempDocSet  = searcher.getDocSet(query);
       
       Set<Integer> containingDocsSet = new HashSet<Integer>();
-      Set<Integer> relatedDocsset = new HashSet<Integer>();
       
       int[] localContainingDocs = null;
       Document doc = null;
 
       if (tempDocSet instanceof BitDocSet) {
-        System.out.println(">>> #2 (SmartDocumentDictionary) BitDocSet");
+        System.out.print(">>> #2 (SmartDocumentDictionary) BitDocSet");
         BitDocSet bitDocSet = (BitDocSet)tempDocSet;
         int numDocs = bitDocSet.size();
-        System.out.println("Size = " + numDocs);
+        System.out.println("- Size = " + numDocs);
         localContainingDocs = new int[numDocs];
         Iterator iter = bitDocSet.iterator();
         int curIdx = 0;
@@ -284,28 +272,13 @@ public class SmartDocumentDictionary implements Dictionary {
       }
 
       for (int i = 0; i < localContainingDocs.length; i++) {
-        doc = reader.document(localContainingDocs[i], getRelevantFields(new String [] {"uri", "relatedDocs"}));
+        doc = reader.document(localContainingDocs[i], getRelevantFields(new String [] {"uri"}));
         String uri = doc.get("uri");
-        String[] relatedDocs = doc.getValues("relatedDocs");
-        
         containingDocsSet.add(uri.hashCode());
-
-        if (relatedDocs != null) {
-          for (int j = 0; j < relatedDocs.length; j++) {
-            relatedDocsset.add(relatedDocs[j].hashCode());
-          }
-        }  
       }
 
       containingDocsList = new ArrayList<Integer>(containingDocsSet);
-      for (Integer curDocId : containingDocsList) {
-        relatedDocsset.remove(curDocId);
-      }
-      
-      relatedDocsList = new ArrayList<Integer>(relatedDocsset);
-
       Collections.sort(containingDocsList);
-      Collections.sort(relatedDocsList);
     }
 
     public int[] getRelatedDocIds(Document doc) throws IOException {
@@ -348,18 +321,10 @@ public class SmartDocumentDictionary implements Dictionary {
       return hasPayloads;
     }
 
-    // public int[] docIdsArray() {
-    //   return currentDocIdsArray;
-    // }
-
     public int[] curentContainingDocs() {
       return curentContainingDocs;
     }
 
-    public int[] currentRelatedDocs() {
-      return currentRelatedDocs;
-    }
-    
     /** 
      * Returns the value of the <code>weightField</code> for the current document.
      * Retrieves the value for the <code>weightField</code> if its stored (using <code>doc</code>)
