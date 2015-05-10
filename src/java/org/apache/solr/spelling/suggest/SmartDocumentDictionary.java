@@ -239,6 +239,10 @@ public class SmartDocumentDictionary implements Dictionary {
         curentContainingDocs = tempContainingDocs;
         currentRelatedDocs = tempRelatedDocs;
 
+        System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
+        System.out.println(">>> #4 (SmartDocumentDictionary) currentRelatedDocs.length = " + currentRelatedDocs.length);
+
+
         // System.out.print("curentContainingDocs = ");
         // System.out.println(Arrays.toString(curentContainingDocs));
 
@@ -251,7 +255,7 @@ public class SmartDocumentDictionary implements Dictionary {
     }
 
     public void setContainingAndRelatedDocs(String queryTerm) throws IOException {
-      System.out.println(">>> FIELD STRING VALUE: " + queryTerm);
+      System.out.println(">>> #1 (SmartDocumentDictionary) FIELD STRING VALUE  - : " + queryTerm);
       Query query = new TermQuery(new Term("text", queryTerm));      
       DocSet tempDocSet  = searcher.getDocSet(query);
       
@@ -262,7 +266,7 @@ public class SmartDocumentDictionary implements Dictionary {
       Document doc = null;
 
       if (tempDocSet instanceof BitDocSet) {
-        System.out.println("====> BitDocSet");
+        System.out.println(">>> #2 (SmartDocumentDictionary) BitDocSet");
         BitDocSet bitDocSet = (BitDocSet)tempDocSet;
         int numDocs = bitDocSet.size();
         System.out.println("Size = " + numDocs);
@@ -274,7 +278,7 @@ public class SmartDocumentDictionary implements Dictionary {
           localContainingDocs[curIdx++] = (Integer)iter.next();
         }
       } else if (tempDocSet instanceof SortedIntDocSet) {
-        System.out.print("=====> SortedIntDocSet with length = ");
+        System.out.print(">>> #2 (SmartDocumentDictionary) SortedIntDocSet with length = ");
         System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
         localContainingDocs = ((SortedIntDocSet)tempDocSet).getDocs();
       }
@@ -284,7 +288,6 @@ public class SmartDocumentDictionary implements Dictionary {
         String uri = doc.get("uri");
         String[] relatedDocs = doc.getValues("relatedDocs");
         
-        System.out.println(">>> URI = " + uri);
         containingDocsSet.add(uri.hashCode());
 
         if (relatedDocs != null) {

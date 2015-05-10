@@ -1,0 +1,34 @@
+<doc>
+<field name="uri">http://dbpedia.org/resource/American_Mayor</field>
+<field name="owl_sameAs_resource">http://rdf.freebase.com/ns/m.05c0t34</field>
+<field name="owl_sameAs_resource">http://wikidata.org/entity/Q4744405</field>
+<field name="owl_sameAs_resource">http://dbpedia.org/resource/American_Mayor</field>
+<field name="owl_sameAs_resource">http://yago-knowledge.org/resource/American_Mayor</field>
+<field name="owl_sameAs_resource">http://wikidata.dbpedia.org/resource/Q4744405</field>
+<field name="rdfs_label_text">American Mayor</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:Bexley,_Ohio</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:2000s_documentary_films</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:American_documentary_films</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:2009_films</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:Autobiographical_documentary_films</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:Documentary_films_about_elections</field>
+<field name="dcterms_subject_resource">http://dbpedia.org/resource/Category:Troma_Entertainment_films</field>
+<field name="dbpprop_director_text">Travis Irvine</field>
+<field name="dbpprop_name_text">American Mayor</field>
+<field name="dbpprop_producer_text">Travis Irvine</field>
+<field name="dbpprop_producer_text">Jeremy Weber</field>
+<field name="dbpprop_producer_text">Matthew Lyons</field>
+<field name="dbpprop_producer_text">Brian Kamerer</field>
+<field name="dbpprop_producer_text">Colin Scianamblo</field>
+<field name="dbpprop_producer_text">Daniel Brown</field>
+<field name="dbpprop_producer_text">Mark Lammers</field>
+<field name="dbpprop_producer_text">Nick Lyons</field>
+<field name="dbpprop_writer_text">Travis Irvine</field>
+<field name="dbpedia-owl_abstract_text">American Mayor is a 2009 documentary film detailing Travis Irvine's 2007 campaign for mayor of Bexley, Ohio.</field>
+<field name="foaf_name_text">American Mayor</field>
+<field name="dbpedia-owl_director_resource">http://dbpedia.org/resource/Travis_Irvine</field>
+<field name="dbpedia-owl_producer_resource">http://dbpedia.org/resource/Travis_Irvine</field>
+<field name="dbpedia-owl_writer_resource">http://dbpedia.org/resource/Travis_Irvine</field>
+<field name="rdfs_comment_text">American Mayor is a 2009 documentary film detailing Travis Irvine's 2007 campaign for mayor of Bexley, Ohio.</field>
+<field name="foaf_isPrimaryTopicOf_resource">http://en.wikipedia.org/wiki/American_Mayor</field>
+</doc>
