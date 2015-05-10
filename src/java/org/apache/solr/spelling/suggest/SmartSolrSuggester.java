@@ -153,12 +153,18 @@ public class SmartSolrSuggester implements Accountable {
 
     // if store directory is provided make it or load up the lookup with its content
     if (store != null) {
+      System.out.println(">>> #1 SmartSolrSuggester.init() - store = " + store);
       storeDir = new File(store);
+      System.out.println(">>> #2 SmartSolrSuggester.init() - storeDir = " + storeDir);
+
       if (!storeDir.isAbsolute()) {
         storeDir = new File(core.getDataDir() + File.separator + storeDir);
+        System.out.println(">>> #3 SmartSolrSuggester.init() - !storeDir.isAbsolute(), new storeDir = " + storeDir);
       }
+
       if (!storeDir.exists()) {
         storeDir.mkdirs();
+        System.out.println(">>> #4 SmartSolrSuggester.init() - !storeDir.exists(), storeDir.mkdirs()");
       } else {
         // attempt reload of the stored lookup
         try {
@@ -204,14 +210,20 @@ public class SmartSolrSuggester implements Accountable {
     LOG.info("reload()");
     if (dictionary == null && storeDir != null) {
       // this may be a firstSearcher event, try loading it
-      FileInputStream is = new FileInputStream(new File(storeDir, factory.storeFileName()));
+      FileInputStream is;
       try {
+        is = new FileInputStream(new File(storeDir, factory.storeFileName()));
         if (lookup.load(is)) {
           return;  // loaded ok
         }
-      } finally {
+      } catch(IOException ex){
+        System.out.println (ex.toString());
+        System.out.println("Could not find file " + factory.storeFileName());
+      } 
+
+      /* finally {
         IOUtils.closeWhileHandlingException(is);
-      }
+      } */
       LOG.debug("load failed, need to build Lookup again");
     }
     // loading was unsuccessful - build it again
