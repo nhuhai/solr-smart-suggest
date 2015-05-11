@@ -198,7 +198,7 @@ public class SmartSolrSuggester implements Accountable {
     if (storeDir != null) {
       File target = new File(storeDir, factory.storeFileName());
       if(!lookup.store(new FileOutputStream(target))) {
-        LOG.error("Store Lookup build failed");
+        LOG.error("Store Lookup build fialed");
       } else {
         LOG.info("Stored suggest data to: " + target.getAbsolutePath());
       }

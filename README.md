@@ -31,11 +31,15 @@ Changes in Solr Code base:
 Commands to start SolrCloud, 2 shards
 
 1st instance
-java -Dcollection.configName=logmill -DzkRun -DnumShards=2 -Dbootstrap_confdir=./solr/logmill/conf -jar start.jar
+java -Dcollection.configName=collection1 -DzkRun -DnumShards=2 -Dbootstrap_confdir=./solr/collection1/conf -jar start.jar
 
 
 2nd instance
 java -DzkHost=localhost:9983 -Djetty.port=8984 -jar start.jar 
+
+
+Suggest request:
+http://localhost:8983/solr/collection1/suggest?suggest.dictionary=labelSuggester&suggest.q=Ge&wt=json&shards.qt=/suggest
 
 http://localhost:8983/solr/logmill/suggest?suggest.dictionary=titleSuggester&suggest.q=th&context=&suggest.dictionary=authorSuggester&suggest.dictionary=publisherSuggester&shards.qt=/suggest&wt=json
 
