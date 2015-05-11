@@ -98,6 +98,7 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
     static final String SUGGESTION_WEIGHT = "weight";
     static final String SUGGESTION_PAYLOAD = "payload";
     static final String SUGGESTION_DOCSID = "docIds";
+    static final String SUGGESTION_SCORE = "score";
   }
   
   @Override
@@ -273,7 +274,7 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
           @SuppressWarnings("unchecked")
           Map<String, SimpleOrderedMap<NamedList<Object>>> namedList = 
               (Map<String, SimpleOrderedMap<NamedList<Object>>>) resp.get(SuggesterResultLabels.SUGGEST);
-          LOG.info(srsp.getShard() + " : " + namedList);
+          // LOG.info(srsp.getShard() + " : " + namedList);
           suggesterResults.add(toSuggesterResult(namedList));
         }
       }
@@ -401,32 +402,31 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
         List<SimpleOrderedMap<Object>> suggestEntriesNamedList = new ArrayList<>();
         for (LookupResult lookupResult : lookupResults) {
           String suggestionString = lookupResult.key.toString();
-          long weight = lookupResult.value;
-          // String payload = (lookupResult.payload != null) ? 
-              // lookupResult.payload.utf8ToString()
-              // : "";
+          // long weight = lookupResult.value;
+          int score = lookupResult.score;
 
-          //Add code to display docIdsArray
-          // String docIdsArrayStr = "[";
-          // byte[] payloadBytes = lookupResult.payload.bytes;
-          // for (int i = 0; i < payloadBytes.length; i+=4) {
-          //   if (i > 0) {
-          //     docIdsArrayStr += ", ";
+          // String docIdsArrayStr = lookupResult.docIdsArrayStr;
+          // if (lookupResult.containingDocsBytesRef != null) {
+          //   byte[] containingDocsBytes = lookupResult.containingDocsBytesRef.bytes;
+          //   for (int i = 0; i < containingDocsBytes.length; i+=4) {
+          //     if (i > 0) {
+          //       docIdsArrayStr += ",";
+          //     }
+          //     int finalInt= (containingDocsBytes[i]<<24)&0xff000000|
+          //            (containingDocsBytes[i+1]<<16)&0x00ff0000|
+          //            (containingDocsBytes[i+2]<< 8)&0x0000ff00|
+          //            (containingDocsBytes[i+3]<< 0)&0x000000ff;
+              
+          //     docIdsArrayStr += finalInt;                           
           //   }
-          //   int finalInt= (payloadBytes[i]<<24)&0xff000000|
-          //          (payloadBytes[i+1]<<16)&0x00ff0000|
-          //          (payloadBytes[i+2]<< 8)&0x0000ff00|
-          //          (payloadBytes[i+3]<< 0)&0x000000ff;
-            
-          //   docIdsArrayStr += finalInt;                           
           // }
-          // docIdsArrayStr += "]";
           
           SimpleOrderedMap<Object> suggestEntryNamedList = new SimpleOrderedMap<>();
           suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_TERM, suggestionString);
+          suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_SCORE, score);
           // suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_WEIGHT, weight);
           //suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_PAYLOAD, payload);
-          // suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, docIdsArrayStr);
+          //suggestEntryNamedList.add(SuggesterResultLabels.SUGGESTION_DOCSID, docIdsArrayStr);
           suggestEntriesNamedList.add(suggestEntryNamedList);
           
         }
@@ -459,9 +459,13 @@ public class SmartSuggestComponent extends SearchComponent implements SolrCoreAw
             List<NamedList<Object>> suggestionEntries = (List<NamedList<Object>>) suggestion.getVal(j);
             for(NamedList<Object> suggestionEntry : suggestionEntries) {
               String term = (String) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_TERM);
-              Long weight = (Long) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_WEIGHT);
-              String payload = (String) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_PAYLOAD);
-              LookupResult res = new LookupResult(new CharsRef(term), weight, new BytesRef(payload));
+              int score = (int) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_SCORE);
+              // Long weight = (Long) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_WEIGHT);
+              // String payload = (String) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_PAYLOAD);
+              // String docIds = (String) suggestionEntry.get(SuggesterResultLabels.SUGGESTION_DOCSID);
+              // System.out.println("docIds = " + docIds);
+              LookupResult res = new LookupResult(new CharsRef(term), 0);
+              res.score = score;
               lookupResults.add(res);
             }
           }

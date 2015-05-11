@@ -26,7 +26,8 @@ jar cf smart.jar org
 Changes in Solr Code base:
 - org.apache.lucene.search.suggest.analyzing.FSTUtil:  add "public" to "T output" (reason: same package name but different classloader, so it doesn't allow to access private field at run time.)
 - add int score to: org.apache.lucene.search.suggest.Lookup.LookupResult
-
+- Registered new index searcher immediately after open it, so building suggester dictionary happens after.
+- Change LookupPriorityQueue lessThan method to use LookupResult.score instead
 
 Commands to start SolrCloud, 2 shards
 

@@ -16,7 +16,8 @@ package org.apache.solr.spelling.suggest;
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Set;
@@ -244,8 +245,39 @@ public class SmartDocumentDictionary implements Dictionary {
     }
 
     public void setContainingDocs(String queryTerm) throws IOException {
-      System.out.println(">>> #1 (SmartDocumentDictionary) FIELD STRING VALUE  - : " + queryTerm);
-      Query query = new TermQuery(new Term("text", queryTerm));      
+      containingDocsList = new ArrayList<Integer>();
+
+      System.out.println(">>> #1 (SmartDocumentDictionary) setContainingDocs() FIELD STRING VALUE  - : " + queryTerm);
+
+      /*  http://localhost:8983/solr/collection1/select?q=%22star+wars%22&fl=uri&wt=csv */
+      String url = "http://localhost:8983/solr/collection1/select";
+      String charset = "UTF-8";  // Or in Java 7 and later, use the constant: java.nio.charset.StandardCharsets.UTF_8.name()
+      String q = "\""+ queryTerm + "\"";
+      String fl = "uri";
+      String wt = "csv";
+
+      String queryString = String.format("q=%s&fl=%s&wt=%s",
+                      URLEncoder.encode(q, charset), 
+                      URLEncoder.encode(fl, charset),
+                      URLEncoder.encode(wt, charset));
+
+      String finalUrl = url + "?" + queryString;
+      System.out.println(">>> finalUrl = " + finalUrl);
+
+      URLConnection connection = new URL(finalUrl).openConnection();
+      connection.setRequestProperty("Accept-Charset", charset);
+      BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+      String line;
+      while ((line = in.readLine()) != null) {
+         if (!line.equals("uri")) {
+            System.out.println(">>> URI: " + line);
+            containingDocsList.add(line.hashCode());
+         }  
+      }
+      in.close();
+      Collections.sort(containingDocsList);
+
+      /* Query query = new TermQuery(new Term("text", queryTerm));      
       DocSet tempDocSet  = searcher.getDocSet(query);
       
       Set<Integer> containingDocsSet = new HashSet<Integer>();
@@ -275,10 +307,7 @@ public class SmartDocumentDictionary implements Dictionary {
         doc = reader.document(localContainingDocs[i], getRelevantFields(new String [] {"uri"}));
         String uri = doc.get("uri");
         containingDocsSet.add(uri.hashCode());
-      }
-
-      containingDocsList = new ArrayList<Integer>(containingDocsSet);
-      Collections.sort(containingDocsList);
+      } */
     }
 
     public int[] getRelatedDocIds(Document doc) throws IOException {

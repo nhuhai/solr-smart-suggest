@@ -17,11 +17,13 @@ package org.apache.solr.spelling.suggest;
  * limitations under the License.
  */
 
-import java.io.Closeable;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
-import java.io.IOException;
+import java.io.*;
+import java.net.*;
+// import java.io.Closeable;
+// import java.io.File;
+// import java.io.FileInputStream;
+// import java.io.FileOutputStream;
+// import java.io.IOException;
 import java.util.List;
 
 import org.apache.lucene.search.spell.Dictionary;
@@ -268,11 +270,11 @@ public class SmartSolrSuggester implements Accountable {
 
       nonZeroList.addAll(zeroList);
       suggestions = nonZeroList; 
-      // System.out.println(">>> #17 suggestions = " + suggestions);
+      System.out.println(">>> #17 suggestions = " + suggestions);
     }
     
-    if (suggestions.size() > 50) {
-      suggestions = suggestions.subList(0, 50);
+    if (suggestions.size() > 25) {
+      suggestions = suggestions.subList(0, 25);
     } 
     res.add(getName(), options.token.toString(), suggestions);
     return res;
@@ -308,46 +310,42 @@ public class SmartSolrSuggester implements Accountable {
   }
 
   public void setContainingAndRelatedDocs(String queryTerm) throws IOException {
-    Query query = new TermQuery(new Term("text", queryTerm));      
-    DocSet tempDocSet  = this.solrIndexSearcher.getDocSet(query);
-    
     Set<Integer> containingDocsSet = new HashSet<Integer>();
     Set<Integer> relatedDocsset = new HashSet<Integer>();
-    
-    int[] localContainingDocs = null;
-    Document doc = null;
 
-    if (tempDocSet instanceof BitDocSet) {
-      // System.out.print(">>> #7 (Lookup - SmartSolrSuggester) BitDocSet");
-      BitDocSet bitDocSet = (BitDocSet)tempDocSet;
-      int numDocs = bitDocSet.size();
-      // System.out.println(" - length = " + numDocs);
-      localContainingDocs = new int[numDocs];
-      Iterator iter = bitDocSet.iterator();
-      int curIdx = 0;
-      
-      while (iter.hasNext() && curIdx < numDocs) {
-        localContainingDocs[curIdx++] = (Integer)iter.next();
-      }
-    } else if (tempDocSet instanceof SortedIntDocSet) {
-      // System.out.print(">>> #7 (Lookup - SmartSolrSuggester) SortedIntDocSet - length = ");
-      System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
-      localContainingDocs = ((SortedIntDocSet)tempDocSet).getDocs();
-    }
+    String url = "http://localhost:8983/solr/collection1/select";
+    String charset = "UTF-8";  // Or in Java 7 and later, use the constant: java.nio.charset.StandardCharsets.UTF_8.name()
+    String q = "\""+ queryTerm + "\"";
+    String fl = "uri,relatedDocs";
+    String wt = "csv";
 
-    for (int i = 0; i < localContainingDocs.length; i++) {
-      doc = this.solrIndexSearcher.getIndexReader().document(localContainingDocs[i], getRelevantFields(new String [] {"uri", "relatedDocs"}));
-      String uri = doc.get("uri");
-      String[] relatedDocs = doc.getValues("relatedDocs");
-      
-      containingDocsSet.add(uri.hashCode());
+    String queryString = String.format("q=%s&fl=%s&wt=%s",
+                    URLEncoder.encode(q, charset), 
+                    URLEncoder.encode(fl, charset),
+                    URLEncoder.encode(wt, charset));
 
-      if (relatedDocs != null) {
-        for (int j = 0; j < relatedDocs.length; j++) {
-          relatedDocsset.add(relatedDocs[j].hashCode());
+    String finalUrl = url + "?" + queryString;
+    System.out.println(">>> finalUrl = " + finalUrl);
+
+    URLConnection connection = new URL(finalUrl).openConnection();
+    connection.setRequestProperty("Accept-Charset", charset);
+    BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+    String line;
+
+    while ((line = in.readLine()) != null) {
+      if (!line.equals("uri,relatedDocs")) {
+        List<String> uriList = Arrays.asList(line.split(","));
+        if (uriList.size() > 0) {
+          containingDocsSet.add(uriList.get(0).hashCode());
+
+          for (int i = 1; i < uriList.size(); i++) {
+            relatedDocsset.add(uriList.get(i).hashCode());
+          }
         }
-      }  
+      }
     }
+    
+    in.close();
 
     containingDocsList = new ArrayList<Integer>(containingDocsSet);
     for (Integer curDocId : containingDocsList) {
