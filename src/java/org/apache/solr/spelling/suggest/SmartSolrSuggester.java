@@ -311,7 +311,8 @@ public class SmartSolrSuggester implements Accountable {
     Query query = new TermQuery(new Term("text", queryTerm));      
     DocSet tempDocSet  = this.solrIndexSearcher.getDocSet(query);
     
-    Set<Integer> containingDocsSet = new HashSet<Integer>();
+    // Set<Integer> containingDocsSet = new HashSet<Integer>();
+    containingDocsList = new ArrayList<Integer>();
     Set<Integer> relatedDocsset = new HashSet<Integer>();
     
     int[] localContainingDocs = null;
@@ -340,7 +341,7 @@ public class SmartSolrSuggester implements Accountable {
       String uri = doc.get("uri");
       String[] relatedDocs = doc.getValues("relatedDocs");
       
-      containingDocsSet.add(uri.hashCode());
+      containingDocsList.add(uri.hashCode());
 
       if (relatedDocs != null) {
         for (int j = 0; j < relatedDocs.length; j++) {
@@ -348,8 +349,7 @@ public class SmartSolrSuggester implements Accountable {
         }
       }  
     }
-
-    containingDocsList = new ArrayList<Integer>(containingDocsSet);
+    
     for (Integer curDocId : containingDocsList) {
       relatedDocsset.remove(curDocId);
     }

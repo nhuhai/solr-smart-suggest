@@ -230,7 +230,7 @@ public class SmartDocumentDictionary implements Dictionary {
         // currentDocIdsArray = tempDocIdsArray;
         curentContainingDocs = tempContainingDocs;
 
-        System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
+        // System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
 
         // System.out.print("curentContainingDocs = ");
         // System.out.println(Arrays.toString(curentContainingDocs));
@@ -244,20 +244,21 @@ public class SmartDocumentDictionary implements Dictionary {
     }
 
     public void setContainingDocs(String queryTerm) throws IOException {
-      System.out.println(">>> #1 (SmartDocumentDictionary) FIELD STRING VALUE  - : " + queryTerm);
+      // System.out.println(">>> #1 (SmartDocumentDictionary) FIELD STRING VALUE  - : " + queryTerm);
       Query query = new TermQuery(new Term("text", queryTerm));      
       DocSet tempDocSet  = searcher.getDocSet(query);
       
-      Set<Integer> containingDocsSet = new HashSet<Integer>();
+      // Set<Integer> containingDocsSet = new HashSet<Integer>();
+      containingDocsList = new ArrayList<Integer>();
       
       int[] localContainingDocs = null;
       Document doc = null;
 
       if (tempDocSet instanceof BitDocSet) {
-        System.out.print(">>> #2 (SmartDocumentDictionary) BitDocSet");
+        // System.out.print(">>> #2 (SmartDocumentDictionary) BitDocSet");
         BitDocSet bitDocSet = (BitDocSet)tempDocSet;
         int numDocs = bitDocSet.size();
-        System.out.println("- Size = " + numDocs);
+        // System.out.println("- Size = " + numDocs);
         localContainingDocs = new int[numDocs];
         Iterator iter = bitDocSet.iterator();
         int curIdx = 0;
@@ -266,18 +267,17 @@ public class SmartDocumentDictionary implements Dictionary {
           localContainingDocs[curIdx++] = (Integer)iter.next();
         }
       } else if (tempDocSet instanceof SortedIntDocSet) {
-        System.out.print(">>> #2 (SmartDocumentDictionary) SortedIntDocSet with length = ");
-        System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
+        // System.out.print(">>> #2 (SmartDocumentDictionary) SortedIntDocSet with length = ");
+        // System.out.println(((SortedIntDocSet)tempDocSet).getDocs().length);
         localContainingDocs = ((SortedIntDocSet)tempDocSet).getDocs();
       }
 
       for (int i = 0; i < localContainingDocs.length; i++) {
         doc = reader.document(localContainingDocs[i], getRelevantFields(new String [] {"uri"}));
         String uri = doc.get("uri");
-        containingDocsSet.add(uri.hashCode());
+        containingDocsList.add(uri.hashCode());
       }
 
-      containingDocsList = new ArrayList<Integer>(containingDocsSet);
       Collections.sort(containingDocsList);
     }
 
