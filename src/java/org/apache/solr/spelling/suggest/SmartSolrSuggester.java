@@ -380,7 +380,7 @@ public class SmartSolrSuggester implements Accountable {
     Arrays.sort(currentSuggestDocs);
     // System.out.println(">>> #10 (Lookup - SmartSolrSuggester.getScore) current suggested term docs = " + Arrays.toString(currentSuggestDocs));
 
-    if (contextContainingDocsArr != null) {
+    if (contextContainingDocsArr != null && currentSuggestDocs.length > 0 && contextContainingDocsArr.length > 0) {
       int overlappedScore;
       if (currentSuggestDocs.length < contextContainingDocsArr.length) {
         overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextContainingDocsArr);
@@ -391,7 +391,7 @@ public class SmartSolrSuggester implements Accountable {
       // System.out.println(">>> #11 first score = " + score);
     }
 
-    if (contextRelatedDocsArr != null) {
+    if (contextRelatedDocsArr != null && currentSuggestDocs.length > 0 && contextRelatedDocsArr.length > 0) {
       int overlappedScore;
       if (currentSuggestDocs.length < contextRelatedDocsArr.length) {
         overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextRelatedDocsArr);
