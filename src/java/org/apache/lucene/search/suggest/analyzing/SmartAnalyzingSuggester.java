@@ -468,8 +468,8 @@ public class SmartAnalyzingSuggester extends Lookup {
 
           // Smart Solr Suggester Addition
           int[] curentContainingDocs = ((DocumentInputIterator)iterator).curentContainingDocs();
-          System.out.println(">>> #4 (SmartAnalyzingSuggester) LABEL (WRITE Step) : " + surfaceForm.utf8ToString());
-          System.out.println(">>> #5 (SmartAnalyzingSuggester) curentContainingDocs (length = " + curentContainingDocs.length + ") :" + Arrays.toString(curentContainingDocs));
+          // System.out.println(">>> #4 (SmartAnalyzingSuggester) LABEL (WRITE Step) : " + surfaceForm.utf8ToString());
+          // System.out.println(">>> #5 (SmartAnalyzingSuggester) curentContainingDocs (length = " + curentContainingDocs.length + ") :" + Arrays.toString(curentContainingDocs));
 
           if (hasPayloads) {
             if (surfaceForm.length > (Short.MAX_VALUE-2)) {
@@ -604,17 +604,17 @@ public class SmartAnalyzingSuggester extends Lookup {
         analyzed.append((byte) dedup);
 
         Util.toIntsRef(analyzed.get(), scratchInts);
-        System.out.println(">>> #6 (SmartAnalyzingSuggester) ADD: " + scratchInts.get() + " -> " + cost + ": " + surface.utf8ToString());
+        // System.out.println(">>> #6 (SmartAnalyzingSuggester) ADD: " + scratchInts.get() + " -> " + cost + ": " + surface.utf8ToString());
         if (!hasPayloads) {
           int containingDocsOffset = input.getPosition() + surface.length;
           int containingDocsLength = scratch.length() - containingDocsOffset;
           
-          System.out.println(">>> (SmartAnalyzingSuggester) containingDocsLength = " + containingDocsLength);
-          System.out.println(">>> (SmartAnalyzingSuggester) containingDocsOffset = " + containingDocsOffset);
-          System.out.println(">>> (SmartAnalyzingSuggester) scratch.length  = " + scratch.length());
+          // System.out.println(">>> (SmartAnalyzingSuggester) containingDocsLength = " + containingDocsLength);
+          // System.out.println(">>> (SmartAnalyzingSuggester) containingDocsOffset = " + containingDocsOffset);
+          // System.out.println(">>> (SmartAnalyzingSuggester) scratch.length  = " + scratch.length());
 
-          System.out.println(">>> (SmartAnalyzingSuggester) LABEL (READ Step) : " + surface.utf8ToString());
-          System.out.println(">>> (SmartAnalyzingSuggester) curentContainingDocs length: " + containingDocsLength/4);
+          // System.out.println(">>> (SmartAnalyzingSuggester) LABEL (READ Step) : " + surface.utf8ToString());
+          // System.out.println(">>> (SmartAnalyzingSuggester) curentContainingDocs length: " + containingDocsLength/4);
 
           // System.out.println("scratch length = " + scratch.length() + " &&& docIdsArrayOffset = " + docIdsArrayOffset + 
           // " &&& surface.length = " + surface.length +  "&&& docIdsArrayLength = " + docIdsArrayLength);

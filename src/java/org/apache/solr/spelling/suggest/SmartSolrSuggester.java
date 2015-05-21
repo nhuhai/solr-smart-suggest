@@ -255,6 +255,8 @@ public class SmartSolrSuggester implements Accountable {
       List<LookupResult> zeroList = new ArrayList<LookupResult>();
       List<LookupResult> nonZeroList = new ArrayList<LookupResult>();
 
+      // System.out.println(">>> #10 suggestions = " + suggestions);
+
       for (LookupResult curResult : suggestions) {
         curResult.score = this.getScore(curResult.containingDocsBytesRef);
         // System.out.println(">>> #14 curResult.score = " + curResult.score);
@@ -270,12 +272,12 @@ public class SmartSolrSuggester implements Accountable {
 
       nonZeroList.addAll(zeroList);
       suggestions = nonZeroList; 
-      System.out.println(">>> #17 suggestions = " + suggestions);
     }
     
     if (suggestions.size() > 25) {
       suggestions = suggestions.subList(0, 25);
     } 
+    // System.out.println(">>> #17 suggestions = " + suggestions);
     res.add(getName(), options.token.toString(), suggestions);
     return res;
   }
@@ -378,7 +380,7 @@ public class SmartSolrSuggester implements Accountable {
     Arrays.sort(currentSuggestDocs);
     // System.out.println(">>> #10 (Lookup - SmartSolrSuggester.getScore) current suggested term docs = " + Arrays.toString(currentSuggestDocs));
 
-    if (contextContainingDocsArr != null) {
+    if (contextContainingDocsArr != null && currentSuggestDocs.length != 0 && contextContainingDocsArr.length != 0) {
       int overlappedScore;
       if (currentSuggestDocs.length < contextContainingDocsArr.length) {
         overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextContainingDocsArr);
@@ -389,7 +391,7 @@ public class SmartSolrSuggester implements Accountable {
       // System.out.println(">>> #11 first score = " + score);
     }
 
-    if (contextRelatedDocsArr != null) {
+    if (contextRelatedDocsArr != null && currentSuggestDocs.length != 0 && contextRelatedDocsArr.length != 0) {
       int overlappedScore;
       if (currentSuggestDocs.length < contextRelatedDocsArr.length) {
         overlappedScore = SortedIntDocSet.intersectionSize(currentSuggestDocs, contextRelatedDocsArr);

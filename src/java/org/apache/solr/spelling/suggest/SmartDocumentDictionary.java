@@ -231,7 +231,7 @@ public class SmartDocumentDictionary implements Dictionary {
         // currentDocIdsArray = tempDocIdsArray;
         curentContainingDocs = tempContainingDocs;
 
-        System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
+        // System.out.println(">>> #3 (SmartDocumentDictionary) curentContainingDocs.length = " + curentContainingDocs.length);
 
         // System.out.print("curentContainingDocs = ");
         // System.out.println(Arrays.toString(curentContainingDocs));
@@ -247,7 +247,7 @@ public class SmartDocumentDictionary implements Dictionary {
     public void setContainingDocs(String queryTerm) throws IOException {
       containingDocsList = new ArrayList<Integer>();
 
-      System.out.println(">>> #1 (SmartDocumentDictionary) setContainingDocs() FIELD STRING VALUE  - : " + queryTerm);
+      // System.out.println(">>> #1 (SmartDocumentDictionary) setContainingDocs() FIELD STRING VALUE  - : " + queryTerm);
 
       /*  http://localhost:8983/solr/collection1/select?q=%22star+wars%22&fl=uri&wt=csv */
       String url = "http://localhost:8983/solr/collection1/select";
@@ -262,7 +262,7 @@ public class SmartDocumentDictionary implements Dictionary {
                       URLEncoder.encode(wt, charset));
 
       String finalUrl = url + "?" + queryString;
-      System.out.println(">>> finalUrl = " + finalUrl);
+      // System.out.println(">>> finalUrl = " + finalUrl);
 
       URLConnection connection = new URL(finalUrl).openConnection();
       connection.setRequestProperty("Accept-Charset", charset);
@@ -270,7 +270,7 @@ public class SmartDocumentDictionary implements Dictionary {
       String line;
       while ((line = in.readLine()) != null) {
          if (!line.equals("uri")) {
-            System.out.println(">>> URI: " + line);
+            // System.out.println(">>> URI: " + line);
             containingDocsList.add(line.hashCode());
          }  
       }

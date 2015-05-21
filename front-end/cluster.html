@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>jQuery UI Autocomplete - Multiple, remote</title>
+  <title>Smart Solr Suggester</title>
   <link rel="stylesheet" href="styles/jquery-ui.css">
   <script src="scripts/jquery-1.10.2.js"></script>
   <script src="scripts/jquery-ui.js"></script>
@@ -83,7 +83,7 @@
           search: function() {
             // custom minLength
             var term = extractLast( this.value );
-            if ( term.length < 2 ) {
+            if ( term.length < 1 ) {
               return false;
             }
           },
